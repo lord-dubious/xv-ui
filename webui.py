@@ -1,7 +1,11 @@
-from dotenv import load_dotenv
-load_dotenv()
 import argparse
+from src.utils.env_utils import ensure_env_file_exists
 from src.webui.interface import theme_map, create_ui
+from dotenv import load_dotenv
+
+# Ensure .env file exists before loading it
+ensure_env_file_exists()
+load_dotenv()
 
 
 def main():
