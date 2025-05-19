@@ -182,7 +182,7 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
             <div class="mcp-server-actions">
                 {toggle_html}
                 <div class="dropdown">
-                    <button class="mcp-server-more-btn" onclick="toggleDropdown('{dropdown_id}', event)">...</button>
+                    <button class="mcp-server-more-btn" data-dropdown-id="{dropdown_id}">...</button>
                     <div id="{dropdown_id}" class="dropdown-content">
                         <a href="#" class="edit-server" data-server="{escaped_name}">Edit</a>
                         <a href="#" class="copy-json" data-server="{escaped_name}">Copy JSON</a>
@@ -363,34 +363,39 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
     </style>
 
     <script>
-    // Function to toggle dropdown visibility
-    function toggleDropdown(dropdownId, event) {
-        // Get the event object
-        event = event || window.event;
-
-        // Close all dropdowns first
-        document.querySelectorAll('.dropdown-content').forEach(function(dropdown) {
-            dropdown.classList.remove('show');
-        });
-
-        // Toggle the clicked dropdown
-        const dropdown = document.getElementById(dropdownId);
-        if (dropdown) {
-            dropdown.classList.toggle('show');
-
-            // Stop event propagation
-            if (event) {
-                event.stopPropagation();
-            }
-        }
-    }
-
     // Close dropdowns when clicking outside
-    window.addEventListener('click', function(event) {
+    document.addEventListener('click', function(event) {
+        // If the click is not on a dropdown button, close all dropdowns
         if (!event.target.matches('.mcp-server-more-btn')) {
             document.querySelectorAll('.dropdown-content').forEach(function(dropdown) {
                 dropdown.classList.remove('show');
             });
+        }
+    });
+
+    // Add click event listeners to all dropdown buttons
+    document.addEventListener('click', function(event) {
+        // Check if the clicked element is a dropdown button
+        if (event.target.matches('.mcp-server-more-btn')) {
+            // Prevent the default action
+            event.preventDefault();
+
+            // Get the dropdown ID from the data attribute
+            const dropdownId = event.target.getAttribute('data-dropdown-id');
+
+            // Close all dropdowns first
+            document.querySelectorAll('.dropdown-content').forEach(function(dropdown) {
+                dropdown.classList.remove('show');
+            });
+
+            // Toggle the clicked dropdown
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+
+                // Stop event propagation to prevent the document click handler from immediately closing it
+                event.stopPropagation();
+            }
         }
     });
 
