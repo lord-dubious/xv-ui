@@ -1,7 +1,8 @@
 import argparse
 import json
 import gradio as gr
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response
 from src.utils.env_utils import ensure_env_file_exists, get_mcp_servers
 from src.webui.interface import theme_map, create_ui
 from src.webui.components.mcp_server_utils import get_server_config_json
@@ -25,9 +26,13 @@ mock_webui_manager = MockWebuiManager()
 @app.get("/api/mcp/server/{server_name}/json")
 def get_mcp_server_json_api(server_name: str):
     try:
-        return json.loads(get_server_config_json(server_name, mock_webui_manager))
+        # Get the JSON string directly from the utility function
+        json_string = get_server_config_json(server_name, mock_webui_manager)
+        # Return it as a Response with the correct content type
+        return Response(content=json_string, media_type="application/json")
     except Exception as e:
-        return {"error": str(e)}
+        # Return a proper HTTP error status code
+        raise HTTPException(status_code=404, detail=str(e))
 
 def main():
     parser = argparse.ArgumentParser(description="Gradio WebUI for Browser Agent")

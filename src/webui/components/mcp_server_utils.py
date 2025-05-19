@@ -1,7 +1,7 @@
 import json
 import logging
 import gradio as gr
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Tuple
 
 from src.webui.webui_manager import WebuiManager
 

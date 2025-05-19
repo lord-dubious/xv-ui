@@ -1,4 +1,6 @@
 import json
+import html
+import shlex
 import gradio as gr
 from src.webui.webui_manager import WebuiManager
 from src.utils import config
@@ -22,10 +24,12 @@ def update_model_dropdown(llm_provider):
 def get_mcp_server_names(webui_manager: WebuiManager):
     """
     Get the list of MCP server names for the dropdown.
+    Returns a sorted list for consistent display order.
     """
     mcp_servers = webui_manager.get_mcp_servers()
-    logger.debug(f"MCP server names: {list(mcp_servers.keys())}")
-    return list(mcp_servers.keys())
+    server_names = sorted(mcp_servers.keys())
+    logger.debug(f"MCP server names: {server_names}")
+    return server_names
 
 
 def get_mcp_server_details(server_name: str, webui_manager: WebuiManager):
@@ -66,7 +70,11 @@ def get_mcp_servers_list(webui_manager: WebuiManager):
         logger.debug(f"Raw MCP servers data: {json.dumps(mcp_servers, indent=2)}")
         servers_list = []
 
-        for name, config in mcp_servers.items():
+        # Sort server names for consistent display order
+        sorted_names = sorted(mcp_servers.keys())
+
+        for name in sorted_names:
+            config = mcp_servers[name]
             command = config.get("command", "")
             args = config.get("args", [])
             env = config.get("env", {})
@@ -99,6 +107,7 @@ def get_mcp_servers_list(webui_manager: WebuiManager):
 def parse_command_string(command_str: str):
     """
     Parse a command string into command and args.
+    Uses shlex.split to properly handle quoted arguments with spaces.
 
     Args:
         command_str: The command string (e.g., 'npx -y @modelcontextprotocol/server-memory')
@@ -106,14 +115,19 @@ def parse_command_string(command_str: str):
     Returns:
         tuple: (command, args)
     """
-    parts = command_str.strip().split()
-    if not parts:
+    try:
+        parts = shlex.split(command_str.strip())
+        if not parts:
+            return "", []
+
+        command = parts[0]
+        args = parts[1:] if len(parts) > 1 else []
+
+        return command, args
+    except ValueError as e:
+        # Handle malformed quoted strings
+        logger.warning(f"Error parsing command string: {e}")
         return "", []
-
-    command = parts[0]
-    args = parts[1:] if len(parts) > 1 else []
-
-    return command, args
 
 
 def render_mcp_servers_html(webui_manager: WebuiManager):
@@ -142,32 +156,37 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
         enabled = server["enabled"]
         logger.debug(f"Rendering server: {name}, enabled: {enabled}")
 
+        # Escape HTML to prevent XSS
+        escaped_name = html.escape(name)
+        escaped_command = html.escape(command)
+
+        # Create a unique ID for the dropdown (safe for HTML attributes)
+        safe_name = escaped_name.replace(' ', '-').replace('"', '').replace("'", "")
+        dropdown_id = f"dropdown-{safe_name}"
+
         # Create a toggle switch for the enabled status
         toggle_html = f"""
         <label class="switch">
-            <input type="checkbox" data-server="{name}" {'checked' if enabled else ''}>
+            <input type="checkbox" data-server="{escaped_name}" {'checked' if enabled else ''}>
             <span class="slider round"></span>
         </label>
         """
 
-        # Create a unique ID for the dropdown
-        dropdown_id = f"dropdown-{name.replace(' ', '-')}"
-
         # Create the server entry with dropdown menu
         server_html = f"""
-        <div class="mcp-server-entry" data-server="{name}">
+        <div class="mcp-server-entry" data-server="{escaped_name}">
             <div class="mcp-server-info">
-                <div class="mcp-server-name">{name}</div>
-                <div class="mcp-server-command">{command}</div>
+                <div class="mcp-server-name">{escaped_name}</div>
+                <div class="mcp-server-command">{escaped_command}</div>
             </div>
             <div class="mcp-server-actions">
                 {toggle_html}
                 <div class="dropdown">
                     <button class="mcp-server-more-btn" onclick="toggleDropdown('{dropdown_id}', event)">...</button>
                     <div id="{dropdown_id}" class="dropdown-content">
-                        <a href="#" class="edit-server" data-server="{name}">Edit</a>
-                        <a href="#" class="copy-json" data-server="{name}">Copy JSON</a>
-                        <a href="#" class="delete-server" data-server="{name}">Delete</a>
+                        <a href="#" class="edit-server" data-server="{escaped_name}">Edit</a>
+                        <a href="#" class="copy-json" data-server="{escaped_name}">Copy JSON</a>
+                        <a href="#" class="delete-server" data-server="{escaped_name}">Delete</a>
                     </div>
                 </div>
             </div>
@@ -413,7 +432,12 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
 
                     // Try to fetch the server configuration from the backend
                     fetch(`/api/mcp/server/${serverName}/json`)
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.error) {
                                 console.error('Error fetching server config:', data.error);
@@ -432,7 +456,7 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
                         })
                         .catch(error => {
                             console.error('Error fetching server config:', error);
-                            alert('Error fetching server configuration. Edit feature coming soon!');
+                            alert('Error fetching server configuration: ' + error.message);
                         });
                 });
             });
@@ -453,7 +477,12 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
 
                     // Try to fetch the actual configuration from the backend
                     fetch(`/api/mcp/server/${serverName}/json`)
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             // Create a temporary textarea to copy the JSON
                             const textarea = document.createElement('textarea');
@@ -476,7 +505,7 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
                             document.execCommand('copy');
                             document.body.removeChild(textarea);
 
-                            alert('Server configuration copied to clipboard (client-side fallback)');
+                            alert('Server configuration copied to clipboard (client-side fallback): ' + error.message);
                         });
                 });
             });
@@ -574,75 +603,8 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
     return html
 
 
-# This function has been replaced with a synchronous version in the save_json_wrapper
-
-
-async def add_or_update_mcp_server(server_name: str, command: str, args_str: str, env_str: str, webui_manager: WebuiManager):
-    """
-    Add or update an MCP server.
-    """
-    if not server_name or not command:
-        return gr.update(value="Server name and command are required"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
-
-    try:
-        args = json.loads(args_str) if args_str else []
-        env = json.loads(env_str) if env_str else {}
-
-        if not isinstance(args, list):
-            return gr.update(value="Arguments must be a JSON array"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
-
-        if not isinstance(env, dict):
-            return gr.update(value="Environment variables must be a JSON object"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
-
-        # Close existing MCP client if server is being updated
-        mcp_servers = webui_manager.get_mcp_servers()
-        if server_name in mcp_servers and hasattr(webui_manager, "bu_controller") and webui_manager.bu_controller:
-            logger.warning(f"⚠️ Close controller because MCP server '{server_name}' has changed!")
-            await webui_manager.bu_controller.close_mcp_client()
-            webui_manager.bu_controller = None
-
-        # Add or update the server
-        if server_name in mcp_servers:
-            success = webui_manager.update_mcp_server(server_name, command, args, env)
-            message = f"Updated MCP server: {server_name}"
-        else:
-            success = webui_manager.add_mcp_server(server_name, command, args, env)
-            message = f"Added new MCP server: {server_name}"
-
-        if success:
-            # Get the updated JSON for the editor
-            updated_json = get_full_mcp_config_json(webui_manager)
-            return gr.update(value=message), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update(value=updated_json)
-        else:
-            return gr.update(value=f"Failed to save MCP server: {server_name}"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
-
-    except json.JSONDecodeError as e:
-        return gr.update(value=f"Invalid JSON: {str(e)}"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
-    except Exception as e:
-        return gr.update(value=f"Error: {str(e)}"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
-
-
-async def remove_mcp_server(server_name: str, webui_manager: WebuiManager):
-    """
-    Remove an MCP server.
-    """
-    if not server_name:
-        return gr.update(value="No server selected"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
-
-    # Close existing MCP client if server is being removed
-    if hasattr(webui_manager, "bu_controller") and webui_manager.bu_controller:
-        logger.warning(f"⚠️ Close controller because MCP server '{server_name}' is being removed!")
-        await webui_manager.bu_controller.close_mcp_client()
-        webui_manager.bu_controller = None
-
-    success = webui_manager.remove_mcp_server(server_name)
-
-    if success:
-        # Get the updated JSON for the editor
-        updated_json = get_full_mcp_config_json(webui_manager)
-        return gr.update(value=f"Removed MCP server: {server_name}"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update(value=updated_json)
-    else:
-        return gr.update(value=f"Failed to remove MCP server: {server_name}"), gr.update(choices=get_mcp_server_names(webui_manager)), gr.update()
+# Note: The async functions add_or_update_mcp_server and remove_mcp_server have been removed
+# as they were replaced with synchronous versions in the save_json_wrapper and handle_server_update_data functions
 
 
 def create_agent_settings_tab(webui_manager: WebuiManager):
@@ -1150,16 +1112,21 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             if not server_name:
                 return "No server specified", render_mcp_servers_html(webui_manager)
 
+            # Convert enabled string to boolean
+            enabled_bool = str(enabled).lower() == "true"
+            logger.debug(f"Toggling server {server_name} to {enabled} (parsed as {enabled_bool})")
+
             # Update the server enabled status
-            success = webui_manager.toggle_mcp_server(server_name, enabled)
+            success = webui_manager.toggle_mcp_server(server_name, enabled_bool)
 
             if success:
-                status = f"Server '{server_name}' {'enabled' if enabled else 'disabled'}"
+                status = f"Server '{server_name}' {'enabled' if enabled_bool else 'disabled'}"
             else:
                 status = f"Failed to update server '{server_name}'"
 
             return status, render_mcp_servers_html(webui_manager)
         except Exception as e:
+            logger.error(f"Error updating server status: {e}", exc_info=True)
             return f"Error updating server status: {str(e)}", render_mcp_servers_html(webui_manager)
 
 
