@@ -1,12 +1,33 @@
 import argparse
-from src.utils.env_utils import ensure_env_file_exists
+import json
+import gradio as gr
+from fastapi import FastAPI
+from src.utils.env_utils import ensure_env_file_exists, get_mcp_servers
 from src.webui.interface import theme_map, create_ui
+from src.webui.components.mcp_server_utils import get_server_config_json
 from dotenv import load_dotenv
 
 # Ensure .env file exists before loading it
 ensure_env_file_exists()
 load_dotenv()
 
+# Create FastAPI app for custom routes
+app = FastAPI()
+
+# Create a mock WebUI manager for API routes
+class MockWebuiManager:
+    def get_mcp_servers(self):
+        return get_mcp_servers()
+
+mock_webui_manager = MockWebuiManager()
+
+# API route to get server configuration JSON
+@app.get("/api/mcp/server/{server_name}/json")
+def get_mcp_server_json_api(server_name: str):
+    try:
+        return json.loads(get_server_config_json(server_name, mock_webui_manager))
+    except Exception as e:
+        return {"error": str(e)}
 
 def main():
     parser = argparse.ArgumentParser(description="Gradio WebUI for Browser Agent")
@@ -16,7 +37,13 @@ def main():
     args = parser.parse_args()
 
     demo = create_ui(theme_name=args.theme)
-    demo.queue().launch(server_name=args.ip, server_port=args.port)
+
+    # Mount Gradio app to FastAPI
+    gr.mount_gradio_app(app, demo, path="/")
+
+    # Launch the FastAPI app
+    import uvicorn
+    uvicorn.run(app, host=args.ip, port=args.port)
 
 
 if __name__ == '__main__':
