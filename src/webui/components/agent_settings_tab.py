@@ -1,10 +1,10 @@
 import json
-import html
 import shlex
 import gradio as gr
 from src.webui.webui_manager import WebuiManager
 from src.utils import config
 import logging
+import html as html_module  # Rename to avoid conflicts
 
 logger = logging.getLogger(__name__)
 
@@ -157,8 +157,8 @@ def render_mcp_servers_html(webui_manager: WebuiManager):
         logger.debug(f"Rendering server: {name}, enabled: {enabled}")
 
         # Escape HTML to prevent XSS
-        escaped_name = html.escape(name)
-        escaped_command = html.escape(command)
+        escaped_name = html_module.escape(name)
+        escaped_command = html_module.escape(command)
 
         # Create a unique ID for the dropdown (safe for HTML attributes)
         safe_name = escaped_name.replace(' ', '-').replace('"', '').replace("'", "")
