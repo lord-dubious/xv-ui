@@ -131,6 +131,10 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
                 info="Specify the directory where downloaded files should be saved.",
                 interactive=True,
             )
+
+    # Add a note about auto-saving
+    with gr.Group():
+        gr.Markdown("*Settings are automatically saved to .env file*")
     tab_components.update(
         dict(
             browser_binary_path=browser_binary_path,
@@ -159,3 +163,86 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
     keep_browser_open.change(close_wrapper)
     disable_security.change(close_wrapper)
     use_own_browser.change(close_wrapper)
+
+    # Function to save a single browser setting to .env
+    def save_browser_setting(setting_name, setting_value):
+        webui_manager.save_browser_settings_to_env(setting_name=setting_name, setting_value=setting_value)
+
+    # Connect change events to auto-save function
+    browser_binary_path.change(
+        fn=lambda value: save_browser_setting("browser_binary_path", value),
+        inputs=[browser_binary_path],
+        outputs=[]
+    )
+
+    browser_user_data_dir.change(
+        fn=lambda value: save_browser_setting("browser_user_data_dir", value),
+        inputs=[browser_user_data_dir],
+        outputs=[]
+    )
+
+    keep_browser_open.change(
+        fn=lambda value: save_browser_setting("keep_browser_open", value),
+        inputs=[keep_browser_open],
+        outputs=[]
+    )
+
+    cdp_url.change(
+        fn=lambda value: save_browser_setting("cdp_url", value),
+        inputs=[cdp_url],
+        outputs=[]
+    )
+
+    window_w.change(
+        fn=lambda value: save_browser_setting("window_w", value),
+        inputs=[window_w],
+        outputs=[]
+    )
+
+    window_h.change(
+        fn=lambda value: save_browser_setting("window_h", value),
+        inputs=[window_h],
+        outputs=[]
+    )
+
+    headless.change(
+        fn=lambda value: save_browser_setting("headless", value),
+        inputs=[headless],
+        outputs=[]
+    )
+
+    disable_security.change(
+        fn=lambda value: save_browser_setting("disable_security", value),
+        inputs=[disable_security],
+        outputs=[]
+    )
+
+    save_recording_path.change(
+        fn=lambda value: save_browser_setting("save_recording_path", value),
+        inputs=[save_recording_path],
+        outputs=[]
+    )
+
+    save_trace_path.change(
+        fn=lambda value: save_browser_setting("save_trace_path", value),
+        inputs=[save_trace_path],
+        outputs=[]
+    )
+
+    save_agent_history_path.change(
+        fn=lambda value: save_browser_setting("save_agent_history_path", value),
+        inputs=[save_agent_history_path],
+        outputs=[]
+    )
+
+    save_download_path.change(
+        fn=lambda value: save_browser_setting("save_download_path", value),
+        inputs=[save_download_path],
+        outputs=[]
+    )
+
+    wss_url.change(
+        fn=lambda value: save_browser_setting("wss_url", value),
+        inputs=[wss_url],
+        outputs=[]
+    )

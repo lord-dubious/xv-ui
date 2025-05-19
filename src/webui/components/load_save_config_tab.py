@@ -1,31 +1,31 @@
 import gradio as gr
-from gradio.components import Component
 
 from src.webui.webui_manager import WebuiManager
-from src.utils import config
 
 
 def create_load_save_config_tab(webui_manager: WebuiManager):
     """
     Creates a load and save config tab.
     """
-    input_components = set(webui_manager.get_components())
     tab_components = {}
 
-    config_file = gr.File(
-        label="Load UI Settings from json",
-        file_types=[".json"],
-        interactive=True
-    )
-    with gr.Row():
-        load_config_button = gr.Button("Load Config", variant="primary")
-        save_config_button = gr.Button("Save UI Settings", variant="primary")
+    # UI Config Section
+    with gr.Group():
+        gr.Markdown("### UI Configuration")
+        config_file = gr.File(
+            label="Load UI Settings from json",
+            file_types=[".json"],
+            interactive=True
+        )
+        with gr.Row():
+            load_config_button = gr.Button("Load Config", variant="primary")
+            save_config_button = gr.Button("Save UI Settings", variant="primary")
 
-    config_status = gr.Textbox(
-        label="Status",
-        lines=2,
-        interactive=False
-    )
+        config_status = gr.Textbox(
+            label="Status",
+            lines=2,
+            interactive=False
+        )
 
     tab_components.update(dict(
         load_config_button=load_config_button,

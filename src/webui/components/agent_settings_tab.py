@@ -115,7 +115,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 label="API Key",
                 type="password",
                 value="",
-                info="Your API key (leave blank to use .env)"
+                info="Your API key (auto-saved to .env)"
             )
 
     with gr.Group():
@@ -172,7 +172,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 label="API Key",
                 type="password",
                 value="",
-                info="Your API key (leave blank to use .env)"
+                info="Your API key (auto-saved to .env)"
             )
 
     with gr.Row():
@@ -266,4 +266,57 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         update_wrapper,
         inputs=[mcp_json_file],
         outputs=[mcp_server_config, mcp_server_config]
+    )
+
+    # Auto-save LLM API settings when they change
+    def save_llm_api_setting(provider=None, api_key=None, base_url=None):
+        if provider is None:
+            provider = llm_provider.value
+
+        if provider:
+            webui_manager.save_api_keys_to_env(provider, api_key, base_url)
+
+    # Auto-save Planner LLM API settings when they change
+    def save_planner_api_setting(provider=None, api_key=None, base_url=None):
+        if provider is None:
+            provider = planner_llm_provider.value
+
+        if provider:
+            webui_manager.save_api_keys_to_env(provider, api_key, base_url)
+
+    # Connect change events to auto-save functions
+    llm_provider.change(
+        fn=lambda provider: save_llm_api_setting(provider=provider),
+        inputs=[llm_provider],
+        outputs=[]
+    )
+
+    llm_api_key.change(
+        fn=lambda api_key: save_llm_api_setting(api_key=api_key),
+        inputs=[llm_api_key],
+        outputs=[]
+    )
+
+    llm_base_url.change(
+        fn=lambda base_url: save_llm_api_setting(base_url=base_url),
+        inputs=[llm_base_url],
+        outputs=[]
+    )
+
+    planner_llm_provider.change(
+        fn=lambda provider: save_planner_api_setting(provider=provider),
+        inputs=[planner_llm_provider],
+        outputs=[]
+    )
+
+    planner_llm_api_key.change(
+        fn=lambda api_key: save_planner_api_setting(api_key=api_key),
+        inputs=[planner_llm_api_key],
+        outputs=[]
+    )
+
+    planner_llm_base_url.change(
+        fn=lambda base_url: save_planner_api_setting(base_url=base_url),
+        inputs=[planner_llm_base_url],
+        outputs=[]
     )
