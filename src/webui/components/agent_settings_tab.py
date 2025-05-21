@@ -47,6 +47,41 @@ async def update_mcp_server(mcp_file: str, webui_manager: WebuiManager):
     return json.dumps(mcp_server, indent=2), gr.update(visible=True)
 
 
+def setup_synchronized_delay_setting(
+    slider_component, number_input_component, setting_key_name, save_function
+):
+    """
+    Sets up two-way synchronization and save-on-change for a slider and a number input.
+
+    Args:
+        slider_component: The Gradio Slider component.
+        number_input_component: The Gradio Number component.
+        setting_key_name (str): The key name for the setting (e.g., 'step_delay_minutes').
+        save_function (callable): The function to call to save the setting.
+                                  It's expected to take a keyword argument,
+                                  e.g., save_function(step_delay_minutes=value).
+    """
+
+    def on_slider_change(value):
+        save_function(**{setting_key_name: value})
+        return gr.update(value=value)
+
+    def on_number_input_change(value):
+        save_function(**{setting_key_name: value})
+        return gr.update(value=value)
+
+    slider_component.change(
+        fn=on_slider_change,
+        inputs=[slider_component],
+        outputs=[number_input_component],
+    )
+    number_input_component.change(
+        fn=on_number_input_change,
+        inputs=[number_input_component],
+        outputs=[slider_component],
+    )
+
+
 def create_agent_settings_tab(webui_manager: WebuiManager):
     """
     Creates an agent settings tab.
@@ -273,6 +308,58 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             choices=["function_calling", "json_mode", "raw", "auto", "tools", "None"],
             visible=True,
         )
+
+    with gr.Group():
+        with gr.Row():
+            step_delay_slider_minutes = gr.Slider(
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("STEP_DELAY_MINUTES", 0.0, float),
+                step=1,
+                label="Delay Between Steps (minutes)",
+                info="Time to wait in minutes (0-1440) before executing each agent step.",
+                interactive=True,
+            )
+            custom_step_delay_minutes = gr.Number(
+                label="Custom Step Delay (mins)",
+                value=get_env_value("STEP_DELAY_MINUTES", 0.0, float),
+                minimum=0,
+                maximum=1440,
+                interactive=True,
+            )
+            action_delay_slider_minutes = gr.Slider(
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("ACTION_DELAY_MINUTES", 0.0, float),
+                step=1,
+                label="Delay Between Actions (minutes)",
+                info="Time to wait in minutes (0-1440) between individual actions (if applicable; currently may not be supported by all agent bases).",
+                interactive=True,
+            )
+            custom_action_delay_minutes = gr.Number(
+                label="Custom Action Delay (mins)",
+                value=get_env_value("ACTION_DELAY_MINUTES", 0.0, float),
+                minimum=0,
+                maximum=1440,
+                interactive=True,
+            )
+            task_delay_slider_minutes = gr.Slider(
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("TASK_DELAY_MINUTES", 0.0, float),
+                step=1,
+                label="Delay Between Tasks (minutes)",
+                info="Time to wait in minutes (0-1440) before starting a new task or run (interpretation may vary based on execution context).",
+                interactive=True,
+            )
+            custom_task_delay_minutes = gr.Number(
+                label="Custom Task Delay (mins)",
+                value=get_env_value("TASK_DELAY_MINUTES", 0.0, float),
+                minimum=0,
+                maximum=1440,
+                interactive=True,
+            )
+
     tab_components.update(
         dict(
             override_system_prompt=override_system_prompt,
@@ -297,6 +384,12 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             tool_calling_method=tool_calling_method,
             mcp_json_file=mcp_json_file,
             mcp_server_config=mcp_server_config,
+            step_delay_minutes=step_delay_slider_minutes,
+            custom_step_delay_minutes=custom_step_delay_minutes,
+            action_delay_minutes=action_delay_slider_minutes,
+            custom_action_delay_minutes=custom_action_delay_minutes,
+            task_delay_minutes=task_delay_slider_minutes,
+            custom_task_delay_minutes=custom_task_delay_minutes,
         )
     )
     webui_manager.add_components("agent_settings", tab_components)
@@ -364,6 +457,19 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             env_vars["PLANNER_OLLAMA_NUM_CTX"] = str(ollama_num_ctx)
         webui_manager.save_env_settings(env_vars)
 
+    # Add a new function to save time interval settings
+    def save_time_interval_settings(
+        step_delay_minutes=None, action_delay_minutes=None, task_delay_minutes=None
+    ):
+        env_vars = webui_manager.load_env_settings()
+        if step_delay_minutes is not None:
+            env_vars["STEP_DELAY_MINUTES"] = str(step_delay_minutes)
+        if action_delay_minutes is not None:
+            env_vars["ACTION_DELAY_MINUTES"] = str(action_delay_minutes)
+        if task_delay_minutes is not None:
+            env_vars["TASK_DELAY_MINUTES"] = str(task_delay_minutes)
+        webui_manager.save_env_settings(env_vars)
+
     # Connect change events to auto-save functions
     llm_provider.change(
         fn=lambda provider: save_llm_api_setting(provider=provider),
@@ -424,6 +530,26 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         fn=lambda ollama_num_ctx: save_planner_settings(ollama_num_ctx=ollama_num_ctx),
         inputs=[planner_ollama_num_ctx],
         outputs=[],
+    )
+
+    # Setup synchronized delay settings using the helper function
+    setup_synchronized_delay_setting(
+        step_delay_slider_minutes,
+        custom_step_delay_minutes,
+        'step_delay_minutes',
+        save_time_interval_settings
+    )
+    setup_synchronized_delay_setting(
+        action_delay_slider_minutes,
+        custom_action_delay_minutes,
+        'action_delay_minutes',
+        save_time_interval_settings
+    )
+    setup_synchronized_delay_setting(
+        task_delay_slider_minutes,
+        custom_task_delay_minutes,
+        'task_delay_minutes',
+        save_time_interval_settings
     )
 
     return list(tab_components.values())
