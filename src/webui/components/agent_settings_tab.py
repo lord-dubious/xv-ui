@@ -47,6 +47,41 @@ async def update_mcp_server(mcp_file: str, webui_manager: WebuiManager):
     return json.dumps(mcp_server, indent=2), gr.update(visible=True)
 
 
+def setup_synchronized_delay_setting(
+    slider_component, number_input_component, setting_key_name, save_function
+):
+    """
+    Sets up two-way synchronization and save-on-change for a slider and a number input.
+
+    Args:
+        slider_component: The Gradio Slider component.
+        number_input_component: The Gradio Number component.
+        setting_key_name (str): The key name for the setting (e.g., 'step_delay_minutes').
+        save_function (callable): The function to call to save the setting.
+                                  It's expected to take a keyword argument,
+                                  e.g., save_function(step_delay_minutes=value).
+    """
+
+    def on_slider_change(value):
+        save_function(**{setting_key_name: value})
+        return gr.update(value=value)
+
+    def on_number_input_change(value):
+        save_function(**{setting_key_name: value})
+        return gr.update(value=value)
+
+    slider_component.change(
+        fn=on_slider_change,
+        inputs=[slider_component],
+        outputs=[number_input_component],
+    )
+    number_input_component.change(
+        fn=on_number_input_change,
+        inputs=[number_input_component],
+        outputs=[slider_component],
+    )
+
+
 def create_agent_settings_tab(webui_manager: WebuiManager):
     """
     Creates an agent settings tab.
@@ -497,68 +532,24 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         outputs=[],
     )
 
-    # Connect change events for time interval sliders to the new save function
-    step_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(step_delay_minutes=x),
-        inputs=[step_delay_slider_minutes],
-        outputs=[],
+    # Setup synchronized delay settings using the helper function
+    setup_synchronized_delay_setting(
+        step_delay_slider_minutes,
+        custom_step_delay_minutes,
+        'step_delay_minutes',
+        save_time_interval_settings
     )
-    step_delay_slider_minutes.change(
-        fn=lambda x: gr.update(value=x),
-        inputs=[step_delay_slider_minutes],
-        outputs=[custom_step_delay_minutes],
+    setup_synchronized_delay_setting(
+        action_delay_slider_minutes,
+        custom_action_delay_minutes,
+        'action_delay_minutes',
+        save_time_interval_settings
     )
-    custom_step_delay_minutes.change(
-        fn=lambda x: save_time_interval_settings(step_delay_minutes=x),
-        inputs=[custom_step_delay_minutes],
-        outputs=[],
-    )
-    custom_step_delay_minutes.change(
-        fn=lambda x: gr.update(value=x),
-        inputs=[custom_step_delay_minutes],
-        outputs=[step_delay_slider_minutes],
-    )
-
-    action_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(action_delay_minutes=x),
-        inputs=[action_delay_slider_minutes],
-        outputs=[],
-    )
-    action_delay_slider_minutes.change(
-        fn=lambda x: gr.update(value=x),
-        inputs=[action_delay_slider_minutes],
-        outputs=[custom_action_delay_minutes],
-    )
-    custom_action_delay_minutes.change(
-        fn=lambda x: save_time_interval_settings(action_delay_minutes=x),
-        inputs=[custom_action_delay_minutes],
-        outputs=[],
-    )
-    custom_action_delay_minutes.change(
-        fn=lambda x: gr.update(value=x),
-        inputs=[custom_action_delay_minutes],
-        outputs=[action_delay_slider_minutes],
-    )
-
-    task_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(task_delay_minutes=x),
-        inputs=[task_delay_slider_minutes],
-        outputs=[],
-    )
-    task_delay_slider_minutes.change(
-        fn=lambda x: gr.update(value=x),
-        inputs=[task_delay_slider_minutes],
-        outputs=[custom_task_delay_minutes],
-    )
-    custom_task_delay_minutes.change(
-        fn=lambda x: save_time_interval_settings(task_delay_minutes=x),
-        inputs=[custom_task_delay_minutes],
-        outputs=[],
-    )
-    custom_task_delay_minutes.change(
-        fn=lambda x: gr.update(value=x),
-        inputs=[custom_task_delay_minutes],
-        outputs=[task_delay_slider_minutes],
+    setup_synchronized_delay_setting(
+        task_delay_slider_minutes,
+        custom_task_delay_minutes,
+        'task_delay_minutes',
+        save_time_interval_settings
     )
 
     return list(tab_components.values())
