@@ -97,6 +97,24 @@ class BrowserUseAgent(Agent):
                 if on_step_start is not None:
                     await on_step_start(self)
 
+                # --- Add step delay (configured in minutes) ---
+                step_delay_minutes_str = os.environ.get("STEP_DELAY_MINUTES", "0.0")
+                if not step_delay_minutes_str:  # Handle empty string case
+                    step_delay_minutes_str = "0.0"
+                try:
+                    step_delay_minutes = float(step_delay_minutes_str)
+                    if step_delay_minutes > 0.0:
+                        step_delay_seconds = step_delay_minutes * 60
+                        logger.info(
+                            f"Waiting for {step_delay_seconds} seconds ({step_delay_minutes} minutes) before next step..."
+                        )
+                        await asyncio.sleep(step_delay_seconds)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid value for STEP_DELAY_MINUTES: {step_delay_minutes_str}. Expected a float."
+                    )
+                # --- End step delay ---
+
                 step_info = AgentStepInfo(step_number=step, max_steps=max_steps)
                 await self.step(step_info)
 
