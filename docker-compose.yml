@@ -10,7 +10,7 @@ services:
     ports:
       - "7788:7788"
       - "6080:6080"
-      - "5901:5901"
+      - "5902:5901"
       - "9222:9222"
     environment:
       # LLM API Keys & Endpoints
