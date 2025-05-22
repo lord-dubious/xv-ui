@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import random
 
 # from lmnr.sdk.decorators import observe
 from browser_use.agent.gif import create_history_gif
@@ -97,22 +98,58 @@ class BrowserUseAgent(Agent):
                 if on_step_start is not None:
                     await on_step_start(self)
 
-                # Add step delay (configured in minutes)
-                step_delay_minutes_str = os.environ.get("STEP_DELAY_MINUTES", "0.0")
-                if not step_delay_minutes_str:  # Handle empty string case
-                    step_delay_minutes_str = "0.0"
-                try:
-                    step_delay_minutes = float(step_delay_minutes_str)
-                    if step_delay_minutes > 0.0:
-                        step_delay_seconds = step_delay_minutes * 60
-                        logger.info(
-                            f"Waiting for {step_delay_seconds} seconds ({step_delay_minutes} minutes) before next step..."
+                # Step delay logic
+                enable_random_step_delay_str = os.environ.get("STEP_ENABLE_RANDOM_INTERVAL", "false")
+                enable_random_step_delay = enable_random_step_delay_str.lower() == "true"
+
+                if enable_random_step_delay:
+                    min_delay_minutes_str = os.environ.get("STEP_MIN_DELAY_MINUTES", "0.0")
+                    if not min_delay_minutes_str: min_delay_minutes_str = "0.0"
+                    max_delay_minutes_str = os.environ.get("STEP_MAX_DELAY_MINUTES", "0.0")
+                    if not max_delay_minutes_str: max_delay_minutes_str = "0.0"
+
+                    try:
+                        min_delay_minutes_raw = float(min_delay_minutes_str)
+                        max_delay_minutes_raw = float(max_delay_minutes_str)
+
+                        min_seconds_raw = min_delay_minutes_raw * 60
+                        max_seconds_raw = max_delay_minutes_raw * 60
+
+                        actual_min_seconds = min(min_seconds_raw, max_seconds_raw)
+                        actual_max_seconds = max(min_seconds_raw, max_seconds_raw)
+
+                        if actual_max_seconds > 0.0:
+                            random_delay_seconds = random.uniform(actual_min_seconds, actual_max_seconds)
+                            logger.info(
+                                f"Applying random step delay between {actual_min_seconds / 60:.1f} and "
+                                f"{actual_max_seconds / 60:.1f} minutes. Chosen: {random_delay_seconds:.1f} seconds."
+                            )
+                            await asyncio.sleep(random_delay_seconds)
+                        else:
+                            logger.info("Random step delay is enabled but min/max values result in no delay.")
+
+                    except ValueError:
+                        logger.warning(
+                            f"Invalid values for STEP_MIN_DELAY_MINUTES ('{min_delay_minutes_str}') or "
+                            f"STEP_MAX_DELAY_MINUTES ('{max_delay_minutes_str}'). Expected floats."
                         )
-                        await asyncio.sleep(step_delay_seconds)
-                except ValueError:
-                    logger.warning(
-                        f"Invalid value for STEP_DELAY_MINUTES: {step_delay_minutes_str}. Expected a float."
-                    )
+                else:
+                    # Fixed step delay (existing logic)
+                    step_delay_minutes_str = os.environ.get("STEP_DELAY_MINUTES", "0.0")
+                    if not step_delay_minutes_str:  # Handle empty string case
+                        step_delay_minutes_str = "0.0"
+                    try:
+                        step_delay_minutes = float(step_delay_minutes_str)
+                        if step_delay_minutes > 0.0:
+                            step_delay_seconds = step_delay_minutes * 60
+                            logger.info(
+                                f"Waiting for fixed {step_delay_seconds:.1f} seconds ({step_delay_minutes:.1f} minutes) before next step..."
+                            )
+                            await asyncio.sleep(step_delay_seconds)
+                    except ValueError:
+                        logger.warning(
+                            f"Invalid value for STEP_DELAY_MINUTES: {step_delay_minutes_str}. Expected a float."
+                        )
 
                 step_info = AgentStepInfo(step_number=step, max_steps=max_steps)
                 await self.step(step_info)

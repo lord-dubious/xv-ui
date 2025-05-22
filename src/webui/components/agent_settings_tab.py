@@ -360,6 +360,84 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 interactive=True,
             )
 
+        # --- Step Delay Settings ---
+        with gr.Row():
+            step_enable_random_interval = get_env_value("STEP_ENABLE_RANDOM_INTERVAL", False, bool)
+            step_enable_random_interval_checkbox = gr.Checkbox(
+                label="Enable Random Interval for Step Delay",
+                value=step_enable_random_interval,
+                interactive=True,
+            )
+        with gr.Row():
+            min_step_delay_slider_minutes = gr.Slider(
+                label="Min Step Delay (minutes)",
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("STEP_MIN_DELAY_MINUTES", 0.0, float),
+                step=1,
+                interactive=step_enable_random_interval,
+            )
+            max_step_delay_slider_minutes = gr.Slider(
+                label="Max Step Delay (minutes)",
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("STEP_MAX_DELAY_MINUTES", 0.0, float),
+                step=1,
+                interactive=step_enable_random_interval,
+            )
+
+        # --- Action Delay Settings ---
+        with gr.Row():
+            action_enable_random_interval = get_env_value("ACTION_ENABLE_RANDOM_INTERVAL", False, bool)
+            action_enable_random_interval_checkbox = gr.Checkbox(
+                label="Enable Random Interval for Action Delay",
+                value=action_enable_random_interval,
+                interactive=True,
+            )
+        with gr.Row():
+            min_action_delay_slider_minutes = gr.Slider(
+                label="Min Action Delay (minutes)",
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("ACTION_MIN_DELAY_MINUTES", 0.0, float),
+                step=1,
+                interactive=action_enable_random_interval,
+            )
+            max_action_delay_slider_minutes = gr.Slider(
+                label="Max Action Delay (minutes)",
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("ACTION_MAX_DELAY_MINUTES", 0.0, float),
+                step=1,
+                interactive=action_enable_random_interval,
+            )
+
+        # --- Task Delay Settings ---
+        with gr.Row():
+            task_enable_random_interval = get_env_value("TASK_ENABLE_RANDOM_INTERVAL", False, bool)
+            task_enable_random_interval_checkbox = gr.Checkbox(
+                label="Enable Random Interval for Task Delay",
+                value=task_enable_random_interval,
+                interactive=True,
+            )
+        with gr.Row():
+            min_task_delay_slider_minutes = gr.Slider(
+                label="Min Task Delay (minutes)",
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("TASK_MIN_DELAY_MINUTES", 0.0, float),
+                step=1,
+                interactive=task_enable_random_interval,
+            )
+            max_task_delay_slider_minutes = gr.Slider(
+                label="Max Task Delay (minutes)",
+                minimum=0,
+                maximum=1440,
+                value=get_env_value("TASK_MAX_DELAY_MINUTES", 0.0, float),
+                step=1,
+                interactive=task_enable_random_interval,
+            )
+
     tab_components.update(
         dict(
             override_system_prompt=override_system_prompt,
@@ -386,10 +464,19 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             mcp_server_config=mcp_server_config,
             step_delay_minutes=step_delay_slider_minutes,
             custom_step_delay_minutes=custom_step_delay_minutes,
+            step_enable_random_interval=step_enable_random_interval_checkbox,
+            min_step_delay_minutes=min_step_delay_slider_minutes,
+            max_step_delay_minutes=max_step_delay_slider_minutes,
             action_delay_minutes=action_delay_slider_minutes,
             custom_action_delay_minutes=custom_action_delay_minutes,
+            action_enable_random_interval=action_enable_random_interval_checkbox,
+            min_action_delay_minutes=min_action_delay_slider_minutes,
+            max_action_delay_minutes=max_action_delay_slider_minutes,
             task_delay_minutes=task_delay_slider_minutes,
             custom_task_delay_minutes=custom_task_delay_minutes,
+            task_enable_random_interval=task_enable_random_interval_checkbox,
+            min_task_delay_minutes=min_task_delay_slider_minutes,
+            max_task_delay_minutes=max_task_delay_slider_minutes,
         )
     )
     webui_manager.add_components("agent_settings", tab_components)
@@ -459,15 +546,44 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # Add a new function to save time interval settings
     def save_time_interval_settings(
-        step_delay_minutes=None, action_delay_minutes=None, task_delay_minutes=None
+        step_delay_minutes=None, action_delay_minutes=None, task_delay_minutes=None,
+        step_enable_random_interval=None, min_step_delay_minutes=None, max_step_delay_minutes=None,
+        action_enable_random_interval=None, min_action_delay_minutes=None, max_action_delay_minutes=None,
+        task_enable_random_interval=None, min_task_delay_minutes=None, max_task_delay_minutes=None
     ):
         env_vars = webui_manager.load_env_settings()
+        # Fixed delays
         if step_delay_minutes is not None:
             env_vars["STEP_DELAY_MINUTES"] = str(step_delay_minutes)
         if action_delay_minutes is not None:
             env_vars["ACTION_DELAY_MINUTES"] = str(action_delay_minutes)
         if task_delay_minutes is not None:
             env_vars["TASK_DELAY_MINUTES"] = str(task_delay_minutes)
+
+        # Step random interval settings
+        if step_enable_random_interval is not None:
+            env_vars["STEP_ENABLE_RANDOM_INTERVAL"] = str(step_enable_random_interval).lower()
+        if min_step_delay_minutes is not None:
+            env_vars["STEP_MIN_DELAY_MINUTES"] = str(min_step_delay_minutes)
+        if max_step_delay_minutes is not None:
+            env_vars["STEP_MAX_DELAY_MINUTES"] = str(max_step_delay_minutes)
+
+        # Action random interval settings
+        if action_enable_random_interval is not None:
+            env_vars["ACTION_ENABLE_RANDOM_INTERVAL"] = str(action_enable_random_interval).lower()
+        if min_action_delay_minutes is not None:
+            env_vars["ACTION_MIN_DELAY_MINUTES"] = str(min_action_delay_minutes)
+        if max_action_delay_minutes is not None:
+            env_vars["ACTION_MAX_DELAY_MINUTES"] = str(max_action_delay_minutes)
+
+        # Task random interval settings
+        if task_enable_random_interval is not None:
+            env_vars["TASK_ENABLE_RANDOM_INTERVAL"] = str(task_enable_random_interval).lower()
+        if min_task_delay_minutes is not None:
+            env_vars["TASK_MIN_DELAY_MINUTES"] = str(min_task_delay_minutes)
+        if max_task_delay_minutes is not None:
+            env_vars["TASK_MAX_DELAY_MINUTES"] = str(max_task_delay_minutes)
+
         webui_manager.save_env_settings(env_vars)
 
     # Connect change events to auto-save functions
@@ -550,6 +666,109 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         custom_task_delay_minutes,
         'task_delay_minutes',
         save_time_interval_settings
+    )
+
+    # --- Define interactivity update logic ---
+    def update_delay_interactivity(checkbox_state):
+        # If checkbox is True (random interval enabled):
+        # - Min/Max sliders are interactive
+        # - Fixed delay inputs are NOT interactive
+        # If checkbox is False (random interval disabled):
+        # - Min/Max sliders are NOT interactive
+        # - Fixed delay inputs are interactive
+        return [
+            gr.update(interactive=checkbox_state),  # For min_slider
+            gr.update(interactive=checkbox_state),  # For max_slider
+            gr.update(interactive=not checkbox_state),  # For fixed_delay_number_input
+            gr.update(interactive=not checkbox_state),  # For fixed_delay_descriptive_slider
+        ]
+
+    # --- Connect interactivity logic for Step Delay ---
+    step_enable_random_interval_checkbox.change(
+        fn=update_delay_interactivity,
+        inputs=[step_enable_random_interval_checkbox],
+        outputs=[
+            min_step_delay_slider_minutes,
+            max_step_delay_slider_minutes,
+            custom_step_delay_minutes,
+            step_delay_slider_minutes,
+        ],
+    )
+
+    # --- Connect interactivity logic for Action Delay ---
+    action_enable_random_interval_checkbox.change(
+        fn=update_delay_interactivity,
+        inputs=[action_enable_random_interval_checkbox],
+        outputs=[
+            min_action_delay_slider_minutes,
+            max_action_delay_slider_minutes,
+            custom_action_delay_minutes,
+            action_delay_slider_minutes,
+        ],
+    )
+
+    # --- Connect interactivity logic for Task Delay ---
+    task_enable_random_interval_checkbox.change(
+        fn=update_delay_interactivity,
+        inputs=[task_enable_random_interval_checkbox],
+        outputs=[
+            min_task_delay_slider_minutes,
+            max_task_delay_slider_minutes,
+            custom_task_delay_minutes,
+            task_delay_slider_minutes,
+        ],
+    )
+
+    # --- Connect save logic for new interval components ---
+    # Step delay random interval
+    step_enable_random_interval_checkbox.change(
+        fn=lambda x: save_time_interval_settings(step_enable_random_interval=x),
+        inputs=[step_enable_random_interval_checkbox],
+        outputs=[],
+    )
+    min_step_delay_slider_minutes.change(
+        fn=lambda x: save_time_interval_settings(min_step_delay_minutes=x),
+        inputs=[min_step_delay_slider_minutes],
+        outputs=[],
+    )
+    max_step_delay_slider_minutes.change(
+        fn=lambda x: save_time_interval_settings(max_step_delay_minutes=x),
+        inputs=[max_step_delay_slider_minutes],
+        outputs=[],
+    )
+
+    # Action delay random interval
+    action_enable_random_interval_checkbox.change(
+        fn=lambda x: save_time_interval_settings(action_enable_random_interval=x),
+        inputs=[action_enable_random_interval_checkbox],
+        outputs=[],
+    )
+    min_action_delay_slider_minutes.change(
+        fn=lambda x: save_time_interval_settings(min_action_delay_minutes=x),
+        inputs=[min_action_delay_slider_minutes],
+        outputs=[],
+    )
+    max_action_delay_slider_minutes.change(
+        fn=lambda x: save_time_interval_settings(max_action_delay_minutes=x),
+        inputs=[max_action_delay_slider_minutes],
+        outputs=[],
+    )
+
+    # Task delay random interval
+    task_enable_random_interval_checkbox.change(
+        fn=lambda x: save_time_interval_settings(task_enable_random_interval=x),
+        inputs=[task_enable_random_interval_checkbox],
+        outputs=[],
+    )
+    min_task_delay_slider_minutes.change(
+        fn=lambda x: save_time_interval_settings(min_task_delay_minutes=x),
+        inputs=[min_task_delay_slider_minutes],
+        outputs=[],
+    )
+    max_task_delay_slider_minutes.change(
+        fn=lambda x: save_time_interval_settings(max_task_delay_minutes=x),
+        inputs=[max_task_delay_slider_minutes],
+        outputs=[],
     )
 
     return list(tab_components.values())
