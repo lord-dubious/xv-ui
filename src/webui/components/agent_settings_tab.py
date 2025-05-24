@@ -97,13 +97,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 label="Override system prompt",
                 lines=4,
                 interactive=True,
-                value=get_env_value("OVERRIDE_SYSTEM_PROMPT", ""),
+                value=get_env_value(env_settings, "OVERRIDE_SYSTEM_PROMPT", ""),
             )
             extend_system_prompt = gr.Textbox(
                 label="Extend system prompt",
                 lines=4,
                 interactive=True,
-                value=get_env_value("EXTEND_SYSTEM_PROMPT", ""),
+                value=get_env_value(env_settings, "EXTEND_SYSTEM_PROMPT", ""),
             )
 
     with gr.Group():
@@ -116,7 +116,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     with gr.Group():
         with gr.Row():
-            initial_llm_provider = get_env_value("LLM_PROVIDER", "openai")
+            initial_llm_provider = get_env_value(env_settings, "LLM_PROVIDER", "openai")
             llm_provider = gr.Dropdown(
                 choices=[provider for provider, model in config.model_names.items()],
                 label="LLM Provider",
@@ -129,6 +129,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 str(initial_llm_provider), []
             )
             initial_llm_model_name = get_env_value(
+                env_settings,
                 "LLM_MODEL_NAME",
                 initial_llm_model_choices[0] if initial_llm_model_choices else "gpt-4o",
             )
@@ -145,7 +146,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             llm_temperature = gr.Slider(
                 minimum=0.0,
                 maximum=2.0,
-                value=get_env_value("LLM_TEMPERATURE", 0.6, float),
+                value=get_env_value(env_settings, "LLM_TEMPERATURE", 0.6, float),
                 step=0.1,
                 label="LLM Temperature",
                 info="Controls randomness in model outputs",
@@ -154,7 +155,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
             use_vision = gr.Checkbox(
                 label="Use Vision",
-                value=get_env_value("USE_VISION", True, bool),
+                value=get_env_value(env_settings, "USE_VISION", True, bool),
                 info="Enable Vision(Input highlighted screenshot into LLM)",
                 interactive=True,
             )
@@ -162,7 +163,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             ollama_num_ctx = gr.Slider(
                 minimum=2**8,
                 maximum=2**16,
-                value=get_env_value("OLLAMA_NUM_CTX", 16000, int),
+                value=get_env_value(env_settings, "OLLAMA_NUM_CTX", 16000, int),
                 step=1,
                 label="Ollama Context Length",
                 info="Controls max context length model needs to handle (less = faster)",
@@ -174,20 +175,24 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             llm_base_url = gr.Textbox(
                 label="Base URL",
                 value=get_env_value(
-                    f"{str(initial_llm_provider).upper()}_ENDPOINT", ""
+                    env_settings, f"{str(initial_llm_provider).upper()}_ENDPOINT", ""
                 ),
                 info="API endpoint URL (if required)",
             )
             llm_api_key = gr.Textbox(
                 label="API Key",
                 type="password",
-                value=get_env_value(f"{str(initial_llm_provider).upper()}_API_KEY", ""),
+                value=get_env_value(
+                    env_settings, f"{str(initial_llm_provider).upper()}_API_KEY", ""
+                ),
                 info="Your API key (auto-saved to .env)",
             )
 
     with gr.Group():
         with gr.Row():
-            initial_planner_llm_provider = get_env_value("PLANNER_LLM_PROVIDER", None)
+            initial_planner_llm_provider = get_env_value(
+                env_settings, "PLANNER_LLM_PROVIDER", None
+            )
             planner_llm_provider = gr.Dropdown(
                 choices=[provider for provider, model in config.model_names.items()],
                 label="Planner LLM Provider",
@@ -207,6 +212,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 else []
             )
             initial_planner_model_name = get_env_value(
+                env_settings,
                 "PLANNER_LLM_MODEL_NAME",
                 initial_planner_model_choices[0]
                 if initial_planner_model_choices
@@ -225,7 +231,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             planner_llm_temperature = gr.Slider(
                 minimum=0.0,
                 maximum=2.0,
-                value=get_env_value("PLANNER_LLM_TEMPERATURE", 0.6, float),
+                value=get_env_value(
+                    env_settings, "PLANNER_LLM_TEMPERATURE", 0.6, float
+                ),
                 step=0.1,
                 label="Planner LLM Temperature",
                 info="Controls randomness in model outputs",
@@ -234,7 +242,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
             planner_use_vision = gr.Checkbox(
                 label="Use Vision(Planner LLM)",
-                value=get_env_value("PLANNER_USE_VISION", False, bool),
+                value=get_env_value(env_settings, "PLANNER_USE_VISION", False, bool),
                 info="Enable Vision(Input highlighted screenshot into LLM)",
                 interactive=True,
             )
@@ -242,7 +250,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             planner_ollama_num_ctx = gr.Slider(
                 minimum=2**8,
                 maximum=2**16,
-                value=get_env_value("PLANNER_OLLAMA_NUM_CTX", 16000, int),
+                value=get_env_value(env_settings, "PLANNER_OLLAMA_NUM_CTX", 16000, int),
                 step=1,
                 label="Ollama Context Length",
                 info="Controls max context length model needs to handle (less = faster)",
@@ -253,14 +261,15 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             planner_llm_base_url = gr.Textbox(
                 label="Base URL",
-                value=get_env_value(
-                    f"{str(initial_planner_llm_provider).upper()}_ENDPOINT"
+                value=(
+                    get_env_value(
+                        env_settings,
+                        f"{str(initial_planner_llm_provider).upper()}_ENDPOINT",
+                        "",
+                    )
                     if initial_planner_llm_provider
-                    else "",
-                    "",
-                )
-                if initial_planner_llm_provider
-                else "",
+                    else ""
+                ),
                 info="API endpoint URL (if required)",
             )
             planner_llm_api_key = gr.Textbox(
@@ -281,7 +290,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         max_steps = gr.Slider(
             minimum=1,
             maximum=1000,
-            value=get_env_value("MAX_STEPS", 100, int),
+            value=get_env_value(env_settings, "MAX_STEPS", 100, int),
             step=1,
             label="Max Run Steps",
             info="Maximum number of steps the agent will take",
@@ -290,7 +299,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         max_actions = gr.Slider(
             minimum=1,
             maximum=100,
-            value=get_env_value("MAX_ACTIONS", 10, int),
+            value=get_env_value(env_settings, "MAX_ACTIONS", 10, int),
             step=1,
             label="Max Number of Actions",
             info="Maximum number of actions the agent will take per step",
@@ -300,13 +309,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
     with gr.Row():
         max_input_tokens = gr.Number(
             label="Max Input Tokens",
-            value=get_env_value("MAX_INPUT_TOKENS", 128000, int),
+            value=get_env_value(env_settings, "MAX_INPUT_TOKENS", 128000, int),
             precision=0,
             interactive=True,
         )
         tool_calling_method = gr.Dropdown(
             label="Tool Calling Method",
-            value=get_env_value("TOOL_CALLING_METHOD", "auto"),
+            value=get_env_value(env_settings, "TOOL_CALLING_METHOD", "auto"),
             interactive=True,
             allow_custom_value=True,
             choices=["function_calling", "json_mode", "raw", "auto", "tools", "None"],
@@ -346,7 +355,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 with gr.Row():
                     step_enable_random_interval_switch = gr.Checkbox(
                         label="🎲 Enable Random Intervals",
-                        value=get_env_value("STEP_ENABLE_RANDOM_INTERVAL", False, bool),
+                        value=get_env_value(
+                            env_settings, "STEP_ENABLE_RANDOM_INTERVAL", False, bool
+                        ),
                         interactive=True,
                         info="Use random delays instead of fixed delays",
                     )
@@ -355,7 +366,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                     with gr.Row():
                         step_delay_value = gr.Number(
                             label="Step Delay",
-                            value=get_env_value("STEP_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "STEP_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -373,13 +386,17 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         )
 
                 with gr.Group(
-                    visible=get_env_value("STEP_ENABLE_RANDOM_INTERVAL", False, bool)
+                    visible=get_env_value(
+                        env_settings, "STEP_ENABLE_RANDOM_INTERVAL", False, bool
+                    )
                 ) as step_random_group:
                     gr.Markdown("**Random Interval Range:**")
                     with gr.Row():
                         step_min_delay = gr.Number(
                             label="Minimum Delay",
-                            value=get_env_value("STEP_MIN_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "STEP_MIN_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -387,7 +404,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         )
                         step_max_delay = gr.Number(
                             label="Maximum Delay",
-                            value=get_env_value("STEP_MAX_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "STEP_MAX_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -430,7 +449,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                     action_enable_random_interval_switch = gr.Checkbox(
                         label="🎲 Enable Random Intervals",
                         value=get_env_value(
-                            "ACTION_ENABLE_RANDOM_INTERVAL", False, bool
+                            env_settings, "ACTION_ENABLE_RANDOM_INTERVAL", False, bool
                         ),
                         interactive=True,
                         info="Use random delays instead of fixed delays",
@@ -440,7 +459,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                     with gr.Row():
                         action_delay_value = gr.Number(
                             label="Action Delay",
-                            value=get_env_value("ACTION_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "ACTION_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -458,13 +479,17 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         )
 
                 with gr.Group(
-                    visible=get_env_value("ACTION_ENABLE_RANDOM_INTERVAL", False, bool)
+                    visible=get_env_value(
+                        env_settings, "ACTION_ENABLE_RANDOM_INTERVAL", False, bool
+                    )
                 ) as action_random_group:
                     gr.Markdown("**Random Interval Range:**")
                     with gr.Row():
                         action_min_delay = gr.Number(
                             label="Minimum Delay",
-                            value=get_env_value("ACTION_MIN_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "ACTION_MIN_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -472,7 +497,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         )
                         action_max_delay = gr.Number(
                             label="Maximum Delay",
-                            value=get_env_value("ACTION_MAX_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "ACTION_MAX_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -514,7 +541,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 with gr.Row():
                     task_enable_random_interval_switch = gr.Checkbox(
                         label="🎲 Enable Random Intervals",
-                        value=get_env_value("TASK_ENABLE_RANDOM_INTERVAL", False, bool),
+                        value=get_env_value(
+                            env_settings, "TASK_ENABLE_RANDOM_INTERVAL", False, bool
+                        ),
                         interactive=True,
                         info="Use random delays instead of fixed delays",
                     )
@@ -523,7 +552,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                     with gr.Row():
                         task_delay_value = gr.Number(
                             label="Task Delay",
-                            value=get_env_value("TASK_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "TASK_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -541,13 +572,17 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         )
 
                 with gr.Group(
-                    visible=get_env_value("TASK_ENABLE_RANDOM_INTERVAL", False, bool)
+                    visible=get_env_value(
+                        env_settings, "TASK_ENABLE_RANDOM_INTERVAL", False, bool
+                    )
                 ) as task_random_group:
                     gr.Markdown("**Random Interval Range:**")
                     with gr.Row():
                         task_min_delay = gr.Number(
                             label="Minimum Delay",
-                            value=get_env_value("TASK_MIN_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "TASK_MIN_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
@@ -555,7 +590,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         )
                         task_max_delay = gr.Number(
                             label="Maximum Delay",
-                            value=get_env_value("TASK_MAX_DELAY_MINUTES", 0.0, float),
+                            value=get_env_value(
+                                env_settings, "TASK_MAX_DELAY_MINUTES", 0.0, float
+                            ),
                             minimum=0,
                             maximum=1440,
                             interactive=True,
