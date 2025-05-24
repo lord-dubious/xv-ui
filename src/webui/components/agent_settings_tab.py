@@ -279,7 +279,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                     get_env_value(
                         env_settings,
                         f"{str(initial_planner_llm_provider).upper()}_API_KEY",
-                        ""
+                        "",
                     )
                     if initial_planner_llm_provider
                     else ""
@@ -610,52 +610,54 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                             interactive=True,
                         )
 
-    tab_components.update({
-            override_system_prompt=override_system_prompt,
-            extend_system_prompt=extend_system_prompt,
-            llm_provider=llm_provider,
-            llm_model_name=llm_model_name,
-            llm_temperature=llm_temperature,
-            use_vision=use_vision,
-            ollama_num_ctx=ollama_num_ctx,
-            llm_base_url=llm_base_url,
-            llm_api_key=llm_api_key,
-            planner_llm_provider=planner_llm_provider,
-            planner_llm_model_name=planner_llm_model_name,
-            planner_llm_temperature=planner_llm_temperature,
-            planner_use_vision=planner_use_vision,
-            planner_ollama_num_ctx=planner_ollama_num_ctx,
-            planner_llm_base_url=planner_llm_base_url,
-            planner_llm_api_key=planner_llm_api_key,
-            max_steps=max_steps,
-            max_actions=max_actions,
-            max_input_tokens=max_input_tokens,
-            tool_calling_method=tool_calling_method,
-            mcp_json_file=mcp_json_file,
-            mcp_server_config=mcp_server_config,
+    tab_components.update(
+        {
+            "override_system_prompt": override_system_prompt,
+            "extend_system_prompt": extend_system_prompt,
+            "llm_provider": llm_provider,
+            "llm_model_name": llm_model_name,
+            "llm_temperature": llm_temperature,
+            "use_vision": use_vision,
+            "ollama_num_ctx": ollama_num_ctx,
+            "llm_base_url": llm_base_url,
+            "llm_api_key": llm_api_key,
+            "planner_llm_provider": planner_llm_provider,
+            "planner_llm_model_name": planner_llm_model_name,
+            "planner_llm_temperature": planner_llm_temperature,
+            "planner_use_vision": planner_use_vision,
+            "planner_ollama_num_ctx": planner_ollama_num_ctx,
+            "planner_llm_base_url": planner_llm_base_url,
+            "planner_llm_api_key": planner_llm_api_key,
+            "max_steps": max_steps,
+            "max_actions": max_actions,
+            "max_input_tokens": max_input_tokens,
+            "tool_calling_method": tool_calling_method,
+            "mcp_json_file": mcp_json_file,
+            "mcp_server_config": mcp_server_config,
             # New delay components
-            step_delay_preset=step_delay_preset,
-            step_delay_value=step_delay_value,
-            step_delay_unit=step_delay_unit,
-            step_enable_random_interval=step_enable_random_interval_switch,
-            step_min_delay=step_min_delay,
-            step_max_delay=step_max_delay,
-            step_random_unit=step_random_unit,
-            action_delay_preset=action_delay_preset,
-            action_delay_value=action_delay_value,
-            action_delay_unit=action_delay_unit,
-            action_enable_random_interval=action_enable_random_interval_switch,
-            action_min_delay=action_min_delay,
-            action_max_delay=action_max_delay,
-            action_random_unit=action_random_unit,
-            task_delay_preset=task_delay_preset,
-            task_delay_value=task_delay_value,
-            task_delay_unit=task_delay_unit,
-            task_enable_random_interval=task_enable_random_interval_switch,
-            task_min_delay=task_min_delay,
-            task_max_delay=task_max_delay,
-            task_random_unit=task_random_unit,
-        })
+            "step_delay_preset": step_delay_preset,
+            "step_delay_value": step_delay_value,
+            "step_delay_unit": step_delay_unit,
+            "step_enable_random_interval": step_enable_random_interval_switch,
+            "step_min_delay": step_min_delay,
+            "step_max_delay": step_max_delay,
+            "step_random_unit": step_random_unit,
+            "action_delay_preset": action_delay_preset,
+            "action_delay_value": action_delay_value,
+            "action_delay_unit": action_delay_unit,
+            "action_enable_random_interval": action_enable_random_interval_switch,
+            "action_min_delay": action_min_delay,
+            "action_max_delay": action_max_delay,
+            "action_random_unit": action_random_unit,
+            "task_delay_preset": task_delay_preset,
+            "task_delay_value": task_delay_value,
+            "task_delay_unit": task_delay_unit,
+            "task_enable_random_interval": task_enable_random_interval_switch,
+            "task_min_delay": task_min_delay,
+            "task_max_delay": task_max_delay,
+            "task_random_unit": task_random_unit,
+        }
+    )
     webui_manager.add_components("agent_settings", tab_components)
 
     llm_provider.change(
@@ -817,43 +819,36 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
     llm_provider.change(
         fn=lambda provider: save_llm_api_setting(provider=provider),
         inputs=[llm_provider],
-        outputs=[],
     )
 
     llm_model_name.change(
         fn=lambda model_name: save_main_llm_settings(model_name=model_name),
         inputs=[llm_model_name],
-        outputs=[],
     )
 
     llm_temperature.change(
         fn=lambda temperature: save_main_llm_settings(temperature=temperature),
         inputs=[llm_temperature],
-        outputs=[],
     )
 
     use_vision.change(
         fn=lambda use_vision: save_main_llm_settings(use_vision=use_vision),
         inputs=[use_vision],
-        outputs=[],
     )
 
     ollama_num_ctx.change(
         fn=lambda ollama_num_ctx: save_main_llm_settings(ollama_num_ctx=ollama_num_ctx),
         inputs=[ollama_num_ctx],
-        outputs=[],
     )
 
     max_steps.change(
         fn=lambda max_steps: save_main_llm_settings(max_steps=max_steps),
         inputs=[max_steps],
-        outputs=[],
     )
 
     max_actions.change(
         fn=lambda max_actions: save_main_llm_settings(max_actions=max_actions),
         inputs=[max_actions],
-        outputs=[],
     )
 
     max_input_tokens.change(
@@ -861,7 +856,6 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             max_input_tokens=max_input_tokens
         ),
         inputs=[max_input_tokens],
-        outputs=[],
     )
 
     tool_calling_method.change(
@@ -869,7 +863,6 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             tool_calling_method=tool_calling_method
         ),
         inputs=[tool_calling_method],
-        outputs=[],
     )
 
     override_system_prompt.change(
@@ -877,7 +870,6 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             override_system_prompt=override_system_prompt
         ),
         inputs=[override_system_prompt],
-        outputs=[],
     )
 
     extend_system_prompt.change(
@@ -885,62 +877,52 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             extend_system_prompt=extend_system_prompt
         ),
         inputs=[extend_system_prompt],
-        outputs=[],
     )
 
     llm_api_key.change(
         fn=lambda api_key: save_llm_api_setting(api_key=api_key),
         inputs=[llm_api_key],
-        outputs=[],
     )
 
     llm_base_url.change(
         fn=lambda base_url: save_llm_api_setting(base_url=base_url),
         inputs=[llm_base_url],
-        outputs=[],
     )
 
     planner_llm_provider.change(
         fn=lambda provider: save_planner_api_setting(provider=provider),
         inputs=[planner_llm_provider],
-        outputs=[],
     )
 
     planner_llm_api_key.change(
         fn=lambda api_key: save_planner_api_setting(api_key=api_key),
         inputs=[planner_llm_api_key],
-        outputs=[],
     )
 
     planner_llm_base_url.change(
         fn=lambda base_url: save_planner_api_setting(base_url=base_url),
         inputs=[planner_llm_base_url],
-        outputs=[],
     )
 
     # Connect change events for additional planner settings to the new save function
     planner_llm_model_name.change(
         fn=lambda model_name: save_planner_settings(model_name=model_name),
         inputs=[planner_llm_model_name],
-        outputs=[],
     )
 
     planner_llm_temperature.change(
         fn=lambda temperature: save_planner_settings(temperature=temperature),
         inputs=[planner_llm_temperature],
-        outputs=[],
     )
 
     planner_use_vision.change(
         fn=lambda use_vision: save_planner_settings(use_vision=use_vision),
         inputs=[planner_use_vision],
-        outputs=[],
     )
 
     planner_ollama_num_ctx.change(
         fn=lambda ollama_num_ctx: save_planner_settings(ollama_num_ctx=ollama_num_ctx),
         inputs=[planner_ollama_num_ctx],
-        outputs=[],
     )
 
     # Helper functions for the new delay UI
