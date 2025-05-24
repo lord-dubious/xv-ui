@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Dict, Tuple
 
 import gradio as gr
 
@@ -11,9 +12,15 @@ from src.webui.webui_manager import WebuiManager
 logger = logging.getLogger(__name__)
 
 
-def update_model_dropdown(llm_provider):
+def update_model_dropdown(llm_provider: str) -> gr.Dropdown:
     """
     Update the model name dropdown with predefined models for the selected provider.
+
+    Args:
+        llm_provider: The LLM provider name
+
+    Returns:
+        Updated Gradio Dropdown component
     """
     # Use predefined models for the selected provider
     if llm_provider in config.model_names:
@@ -82,15 +89,17 @@ def setup_synchronized_delay_setting(
     )
 
 
-def create_agent_settings_tab(webui_manager: WebuiManager):
-    """
-    Creates an agent settings tab.
-    """
-    env_settings = load_env_settings_with_cache(webui_manager)
+def _create_system_prompt_components(
+    env_settings: Dict[str, str],
+) -> Tuple[gr.Textbox, gr.Textbox]:
+    """Create system prompt components.
 
-    input_components = set(webui_manager.get_components())  # noqa: F841
-    tab_components = {}
+    Args:
+        env_settings: Environment settings dictionary
 
+    Returns:
+        Tuple of (override_system_prompt, extend_system_prompt) components
+    """
     with gr.Group():
         with gr.Column():
             override_system_prompt = gr.Textbox(
@@ -105,7 +114,15 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 interactive=True,
                 value=get_env_value(env_settings, "EXTEND_SYSTEM_PROMPT", ""),
             )
+    return override_system_prompt, extend_system_prompt
 
+
+def _create_mcp_components() -> Tuple[gr.File, gr.Textbox]:
+    """Create MCP server components.
+
+    Returns:
+        Tuple of (mcp_json_file, mcp_server_config) components
+    """
     with gr.Group():
         mcp_json_file = gr.File(
             label="MCP server json", interactive=True, file_types=[".json"]
@@ -113,7 +130,11 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         mcp_server_config = gr.Textbox(
             label="MCP server", lines=6, interactive=True, visible=False
         )
+    return mcp_json_file, mcp_server_config
 
+
+def _create_llm_components(env_settings):
+    """Create main LLM configuration components."""
     with gr.Group():
         with gr.Row():
             initial_llm_provider = get_env_value(env_settings, "LLM_PROVIDER", "openai")
@@ -160,34 +181,42 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 interactive=True,
             )
 
-            ollama_num_ctx = gr.Slider(
-                minimum=2**8,
-                maximum=2**16,
-                value=get_env_value(env_settings, "OLLAMA_NUM_CTX", 16000, int),
-                step=1,
+            ollama_num_ctx = gr.Number(
                 label="Ollama Context Length",
-                info="Controls max context length model needs to handle (less = faster)",
-                visible=initial_llm_provider == "ollama",
+                value=get_env_value(env_settings, "OLLAMA_NUM_CTX", 128000, int),
+                precision=0,
                 interactive=True,
+                visible=initial_llm_provider == "ollama",
             )
 
         with gr.Row():
             llm_base_url = gr.Textbox(
-                label="Base URL",
-                value=get_env_value(
-                    env_settings, f"{str(initial_llm_provider).upper()}_ENDPOINT", ""
-                ),
-                info="API endpoint URL (if required)",
+                label="LLM Base URL",
+                value=get_env_value(env_settings, "LLM_BASE_URL", ""),
+                interactive=True,
+                visible=initial_llm_provider in ["openai", "anthropic", "ollama"],
             )
             llm_api_key = gr.Textbox(
-                label="API Key",
+                label="LLM API Key",
+                value=get_env_value(env_settings, "LLM_API_KEY", ""),
                 type="password",
-                value=get_env_value(
-                    env_settings, f"{str(initial_llm_provider).upper()}_API_KEY", ""
-                ),
-                info="Your API key (auto-saved to .env)",
+                interactive=True,
+                visible=initial_llm_provider in ["openai", "anthropic", "ollama"],
             )
 
+    return (
+        llm_provider,
+        llm_model_name,
+        llm_temperature,
+        use_vision,
+        ollama_num_ctx,
+        llm_base_url,
+        llm_api_key,
+    )
+
+
+def _create_planner_components(env_settings):
+    """Create planner LLM configuration components."""
     with gr.Group():
         with gr.Row():
             initial_planner_llm_provider = get_env_value(
@@ -287,6 +316,19 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 info="Your API key (auto-saved to .env)",
             )
 
+    return (
+        planner_llm_provider,
+        planner_llm_model_name,
+        planner_llm_temperature,
+        planner_use_vision,
+        planner_ollama_num_ctx,
+        planner_llm_base_url,
+        planner_llm_api_key,
+    )
+
+
+def _create_agent_config_components(env_settings):
+    """Create agent configuration components (max steps, actions, etc.)."""
     with gr.Row():
         max_steps = gr.Slider(
             minimum=1,
@@ -322,6 +364,53 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             choices=["function_calling", "json_mode", "raw", "auto", "tools", "None"],
             visible=True,
         )
+
+    return max_steps, max_actions, max_input_tokens, tool_calling_method
+
+
+def create_agent_settings_tab(webui_manager: WebuiManager):
+    """
+    Creates an agent settings tab.
+    """
+    env_settings = load_env_settings_with_cache(webui_manager)
+
+    input_components = set(webui_manager.get_components())  # noqa: F841
+    tab_components = {}
+
+    # Create system prompt components
+    override_system_prompt, extend_system_prompt = _create_system_prompt_components(
+        env_settings
+    )
+
+    # Create MCP components
+    mcp_json_file, mcp_server_config = _create_mcp_components()
+
+    # Create main LLM components
+    (
+        llm_provider,
+        llm_model_name,
+        llm_temperature,
+        use_vision,
+        ollama_num_ctx,
+        llm_base_url,
+        llm_api_key,
+    ) = _create_llm_components(env_settings)
+
+    # Create planner components
+    (
+        planner_llm_provider,
+        planner_llm_model_name,
+        planner_llm_temperature,
+        planner_use_vision,
+        planner_ollama_num_ctx,
+        planner_llm_base_url,
+        planner_llm_api_key,
+    ) = _create_planner_components(env_settings)
+
+    # Create agent configuration components
+    max_steps, max_actions, max_input_tokens, tool_calling_method = (
+        _create_agent_config_components(env_settings)
+    )
 
     # Improved Delay Settings UI
     with gr.Group():
