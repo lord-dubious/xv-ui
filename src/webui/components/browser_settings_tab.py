@@ -1,8 +1,8 @@
 import logging
-from typing import Any
 
 import gradio as gr
 
+from src.webui.utils.env_utils import get_env_value, load_env_settings_with_cache
 from src.webui.webui_manager import WebuiManager
 
 logger = logging.getLogger(__name__)
@@ -32,18 +32,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
     Creates a browser settings tab.
     """
     # Load persistent settings from environment
-    env_settings = webui_manager.load_env_settings()
-
-    def get_env_value(key: str, default: Any, type_cast=None):
-        val = env_settings.get(key, default)
-        if type_cast:
-            try:
-                if type_cast is bool:
-                    return str(val).lower() == "true"
-                return type_cast(val)
-            except (ValueError, TypeError):
-                return default
-        return val
+    env_settings = load_env_settings_with_cache(webui_manager)
 
     input_components = set(webui_manager.get_components())
     tab_components = {}
@@ -54,39 +43,39 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
                 label="Browser Binary Path",
                 lines=1,
                 interactive=True,
-                value=get_env_value("BROWSER_PATH", ""),
+                value=get_env_value(env_settings, "BROWSER_PATH", ""),
                 placeholder="e.g. '/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome'",
             )
             browser_user_data_dir = gr.Textbox(
                 label="Browser User Data Dir",
                 lines=1,
                 interactive=True,
-                value=get_env_value("BROWSER_USER_DATA", ""),
+                value=get_env_value(env_settings, "BROWSER_USER_DATA", ""),
                 placeholder="Leave it empty if you use your default user data",
             )
     with gr.Group():
         with gr.Row():
             use_own_browser = gr.Checkbox(
                 label="Use Own Browser",
-                value=get_env_value("USE_OWN_BROWSER", False, bool),
+                value=get_env_value(env_settings, "USE_OWN_BROWSER", False, bool),
                 info="Use your existing browser instance",
                 interactive=True,
             )
             keep_browser_open = gr.Checkbox(
                 label="Keep Browser Open",
-                value=get_env_value("KEEP_BROWSER_OPEN", True, bool),
+                value=get_env_value(env_settings, "KEEP_BROWSER_OPEN", True, bool),
                 info="Keep Browser Open between Tasks",
                 interactive=True,
             )
             headless = gr.Checkbox(
                 label="Headless Mode",
-                value=get_env_value("HEADLESS", False, bool),
+                value=get_env_value(env_settings, "HEADLESS", False, bool),
                 info="Run browser without GUI",
                 interactive=True,
             )
             disable_security = gr.Checkbox(
                 label="Disable Security",
-                value=get_env_value("DISABLE_SECURITY", False, bool),
+                value=get_env_value(env_settings, "DISABLE_SECURITY", False, bool),
                 info="Disable browser security",
                 interactive=True,
             )
@@ -95,13 +84,13 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             window_w = gr.Number(
                 label="Window Width",
-                value=get_env_value("RESOLUTION_WIDTH", 1280, int),
+                value=get_env_value(env_settings, "RESOLUTION_WIDTH", 1280, int),
                 info="Browser window width",
                 interactive=True,
             )
             window_h = gr.Number(
                 label="Window Height",
-                value=get_env_value("RESOLUTION_HEIGHT", 1100, int),
+                value=get_env_value(env_settings, "RESOLUTION_HEIGHT", 1100, int),
                 info="Browser window height",
                 interactive=True,
             )
@@ -109,13 +98,13 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             cdp_url = gr.Textbox(
                 label="CDP URL",
-                value=get_env_value("BROWSER_CDP", ""),
+                value=get_env_value(env_settings, "BROWSER_CDP", ""),
                 info="CDP URL for browser remote debugging",
                 interactive=True,
             )
             wss_url = gr.Textbox(
                 label="WSS URL",
-                value=get_env_value("WSS_URL", ""),
+                value=get_env_value(env_settings, "WSS_URL", ""),
                 info="WSS URL for browser remote debugging",
                 interactive=True,
             )
@@ -123,7 +112,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             save_recording_path = gr.Textbox(
                 label="Recording Path",
-                value=get_env_value("SAVE_RECORDING_PATH", ""),
+                value=get_env_value(env_settings, "SAVE_RECORDING_PATH", ""),
                 placeholder="e.g. ./tmp/record_videos",
                 info="Path to save browser recordings",
                 interactive=True,
@@ -131,7 +120,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
 
             save_trace_path = gr.Textbox(
                 label="Trace Path",
-                value=get_env_value("SAVE_TRACE_PATH", ""),
+                value=get_env_value(env_settings, "SAVE_TRACE_PATH", ""),
                 placeholder="e.g. ./tmp/traces",
                 info="Path to save Agent traces",
                 interactive=True,
@@ -140,13 +129,17 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             save_agent_history_path = gr.Textbox(
                 label="Agent History Save Path",
-                value=get_env_value("SAVE_AGENT_HISTORY_PATH", "./tmp/agent_history"),
+                value=get_env_value(
+                    env_settings, "SAVE_AGENT_HISTORY_PATH", "./tmp/agent_history"
+                ),
                 info="Specify the directory where agent history should be saved.",
                 interactive=True,
             )
             save_download_path = gr.Textbox(
                 label="Save Directory for browser downloads",
-                value=get_env_value("SAVE_DOWNLOAD_PATH", "./tmp/downloads"),
+                value=get_env_value(
+                    env_settings, "SAVE_DOWNLOAD_PATH", "./tmp/downloads"
+                ),
                 info="Specify the directory where downloaded files should be saved.",
                 interactive=True,
             )
