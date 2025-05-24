@@ -1,11 +1,11 @@
 import json
 import logging
 import os
-from typing import Any
 
 import gradio as gr
 
 from src.utils import config
+from src.webui.utils.env_utils import get_env_value, load_env_settings_with_cache
 from src.webui.webui_manager import WebuiManager
 
 logger = logging.getLogger(__name__)
@@ -86,18 +86,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
     """
     Creates an agent settings tab.
     """
-    env_settings = webui_manager.load_env_settings()
-
-    def get_env_value(key: str, default: Any, type_cast=None):
-        val = env_settings.get(key, default)
-        if type_cast:
-            try:
-                if type_cast is bool:
-                    return str(val).lower() == "true"
-                return type_cast(val)
-            except (ValueError, TypeError):
-                return default
-        return val
+    env_settings = load_env_settings_with_cache(webui_manager)
 
     input_components = set(webui_manager.get_components())  # noqa: F841
     tab_components = {}
