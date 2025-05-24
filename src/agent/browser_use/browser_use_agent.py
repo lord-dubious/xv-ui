@@ -177,7 +177,7 @@ class BrowserUseAgent(Agent):
                 
                 # Process task delay (if applicable for current task/run)
                 # Note: Task delay might not be applicable depending on implementation
-                if step == 1:  # Only apply task delay on first step
+                if step == 0:  # Only apply task delay on first step
                     await self._apply_delay("TASK")
 
                 step_info = AgentStepInfo(step_number=step, max_steps=max_steps)
