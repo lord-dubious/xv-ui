@@ -136,7 +136,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 interactive=True,
             )
 
-            initial_llm_model_choices = config.model_names.get(initial_llm_provider, [])
+            initial_llm_model_choices = config.model_names.get(str(initial_llm_provider), [])
             initial_llm_model_name = get_env_value(
                 "LLM_MODEL_NAME",
                 initial_llm_model_choices[0] if initial_llm_model_choices else "gpt-4o",
@@ -182,13 +182,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             llm_base_url = gr.Textbox(
                 label="Base URL",
-                value=get_env_value(f"{initial_llm_provider.upper()}_ENDPOINT", ""),
+                value=get_env_value(f"{str(initial_llm_provider).upper()}_ENDPOINT", ""),
                 info="API endpoint URL (if required)",
             )
             llm_api_key = gr.Textbox(
                 label="API Key",
                 type="password",
-                value=get_env_value(f"{initial_llm_provider.upper()}_API_KEY", ""),
+                value=get_env_value(f"{str(initial_llm_provider).upper()}_API_KEY", ""),
                 info="Your API key (auto-saved to .env)",
             )
 
@@ -204,7 +204,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             )
 
             initial_planner_model_choices = (
-                config.model_names.get(initial_planner_llm_provider, [])
+                config.model_names.get(str(initial_planner_llm_provider) if initial_planner_llm_provider else "", [])
                 if initial_planner_llm_provider
                 else []
             )
@@ -256,7 +256,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             planner_llm_base_url = gr.Textbox(
                 label="Base URL",
                 value=get_env_value(
-                    f"{initial_planner_llm_provider.upper()}_ENDPOINT", ""
+                    f"{str(initial_planner_llm_provider).upper()}_ENDPOINT" if initial_planner_llm_provider else "", ""
                 )
                 if initial_planner_llm_provider
                 else "",
@@ -266,7 +266,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 label="API Key",
                 type="password",
                 value=get_env_value(
-                    f"{initial_planner_llm_provider.upper()}_API_KEY", ""
+                    f"{str(initial_planner_llm_provider).upper()}_API_KEY" if initial_planner_llm_provider else "", ""
                 )
                 if initial_planner_llm_provider
                 else "",
