@@ -22,6 +22,7 @@ from src.agent.browser_use.browser_use_agent import BrowserUseAgent
 from src.browser.custom_browser import CustomBrowser
 from src.controller.custom_controller import CustomController
 from src.utils import llm_provider
+from src.webui.utils.env_utils import get_env_value, load_env_settings_with_cache
 from src.webui.webui_manager import WebuiManager
 
 logger = logging.getLogger(__name__)
@@ -31,12 +32,12 @@ logger = logging.getLogger(__name__)
 
 
 async def _initialize_llm(
-        provider: Optional[str],
-        model_name: Optional[str],
-        temperature: float,
-        base_url: Optional[str],
-        api_key: Optional[str],
-        num_ctx: Optional[int] = None,
+    provider: Optional[str],
+    model_name: Optional[str],
+    temperature: float,
+    base_url: Optional[str],
+    api_key: Optional[str],
+    num_ctx: Optional[int] = None,
 ) -> Optional[BaseChatModel]:
     """Initializes the LLM based on settings. Returns None if provider/model is missing."""
     if not provider or not model_name:
@@ -67,10 +68,10 @@ async def _initialize_llm(
 
 
 def _get_config_value(
-        webui_manager: WebuiManager,
-        comp_dict: Dict[gr.components.Component, Any],
-        comp_id_suffix: str,
-        default: Any = None,
+    webui_manager: WebuiManager,
+    comp_dict: Dict[gr.components.Component, Any],
+    comp_id_suffix: str,
+    default: Any = None,
 ) -> Any:
     """Safely get value from component dictionary using its ID suffix relative to the tab."""
     # Assumes component ID format is "tab_name.comp_name"
@@ -132,7 +133,7 @@ def _format_agent_output(model_output: AgentOutput) -> str:
 
 
 async def _handle_new_step(
-        webui_manager: WebuiManager, state: BrowserState, output: AgentOutput, step_num: int
+    webui_manager: WebuiManager, state: BrowserState, output: AgentOutput, step_num: int
 ):
     """Callback for each step taken by the agent, including screenshot display."""
 
@@ -156,12 +157,12 @@ async def _handle_new_step(
         try:
             # Basic validation: check if it looks like base64
             if (
-                    isinstance(screenshot_data, str) and len(screenshot_data) > 100
+                isinstance(screenshot_data, str) and len(screenshot_data) > 100
             ):  # Arbitrary length check
                 # *** UPDATED STYLE: Removed centering, adjusted width ***
                 img_tag = f'<img src="data:image/jpeg;base64,{screenshot_data}" alt="Step {step_num} Screenshot" style="max-width: 800px; max-height: 600px; object-fit:contain;" />'
                 screenshot_html = (
-                        img_tag + "<br/>"
+                    img_tag + "<br/>"
                 )  # Use <br/> for line break after inline-block image
             else:
                 logger.warning(
@@ -222,7 +223,7 @@ def _handle_done(webui_manager: WebuiManager, history: AgentHistoryList):
 
 
 async def _ask_assistant_callback(
-        webui_manager: WebuiManager, query: str, browser_context: BrowserContext
+    webui_manager: WebuiManager, query: str, browser_context: BrowserContext
 ) -> Dict[str, Any]:
     """Callback triggered by the agent's ask_for_assistant action."""
     logger.info("Agent requires assistance. Waiting for user input.")
@@ -273,7 +274,7 @@ async def _ask_assistant_callback(
 
 
 async def run_agent_task(
-        webui_manager: WebuiManager, components: Dict[gr.components.Component, Any]
+    webui_manager: WebuiManager, components: Dict[gr.components.Component, Any]
 ) -> AsyncGenerator[Dict[gr.components.Component, Any], None]:
     """Handles the entire lifecycle of initializing and running the agent."""
 
@@ -325,19 +326,8 @@ async def run_agent_task(
     # --- Agent Settings ---
     # Access settings values via components dict, getting IDs from webui_manager
     # Load persistent settings from environment as fallback (same as agent_settings_tab.py)
-    env_settings = webui_manager.load_env_settings()
-    
-    def get_env_value(key: str, default: Any, type_cast=None):
-        val = env_settings.get(key, default)
-        if type_cast:
-            try:
-                if type_cast is bool:
-                    return str(val).lower() == "true"
-                return type_cast(val)
-            except (ValueError, TypeError):
-                return default
-        return val
-    
+    env_settings = load_env_settings_with_cache(webui_manager)
+
     def get_setting(key, default=None):
         comp = webui_manager.id_to_component.get(f"agent_settings.{key}")
         ui_value = components.get(comp) if comp else None
@@ -345,23 +335,29 @@ async def run_agent_task(
             return ui_value
         # Fallback to environment variable (map component key to env var)
         env_key = key.upper()
-        return get_env_value(env_key, default)
+        return get_env_value(env_settings, env_key, default)
 
     override_system_prompt = get_setting("override_system_prompt") or None
     extend_system_prompt = get_setting("extend_system_prompt") or None
-    
+
     # Get LLM settings with proper environment fallbacks and defaults
-    llm_provider_name = get_setting("llm_provider") or get_env_value("LLM_PROVIDER", "openai")
-    llm_model_name = get_setting("llm_model_name") or get_env_value("LLM_MODEL_NAME", "gpt-4o")
-    llm_temperature = get_env_value("LLM_TEMPERATURE", get_setting("llm_temperature", 0.6), float)
-    use_vision = get_env_value("USE_VISION", get_setting("use_vision", True), bool)
-    ollama_num_ctx = get_env_value("OLLAMA_NUM_CTX", get_setting("ollama_num_ctx", 16000), int)
-    
+    llm_provider_name = get_setting("llm_provider") or get_env_value(env_settings, "LLM_PROVIDER", "openai"
+    )
+    llm_model_name = get_setting("llm_model_name") or get_env_value(env_settings, "LLM_MODEL_NAME", "gpt-4o"
+    )
+    llm_temperature = get_env_value(env_settings, "LLM_TEMPERATURE", get_setting("llm_temperature", 0.6), float
+    )
+    use_vision = get_env_value(env_settings, "USE_VISION", get_setting("use_vision", True), bool)
+    ollama_num_ctx = get_env_value(env_settings, "OLLAMA_NUM_CTX", get_setting("ollama_num_ctx", 16000), int
+    )
+
     # Get API settings with provider-specific env var fallbacks
     if llm_provider_name:
         provider_upper = str(llm_provider_name).upper()
-        llm_base_url = get_setting("llm_base_url") or get_env_value(f"{provider_upper}_ENDPOINT", None)
-        llm_api_key = get_setting("llm_api_key") or get_env_value(f"{provider_upper}_API_KEY", None)
+        llm_base_url = get_setting("llm_base_url") or get_env_value(env_settings, f"{provider_upper}_ENDPOINT", None
+        )
+        llm_api_key = get_setting("llm_api_key") or get_env_value(env_settings, f"{provider_upper}_API_KEY", None
+        )
     else:
         llm_base_url = get_setting("llm_base_url") or None
         llm_api_key = get_setting("llm_api_key") or None
@@ -448,7 +444,7 @@ async def run_agent_task(
 
     # Pass the webui_manager instance to the callback when wrapping it
     async def ask_callback_wrapper(
-            query: str, browser_context: BrowserContext
+        query: str, browser_context: BrowserContext
     ) -> Dict[str, Any]:
         return await _ask_assistant_callback(webui_manager, query, browser_context)
 
@@ -478,10 +474,14 @@ async def run_agent_task(
             logger.info("Launching new browser instance.")
             extra_args = []
             if use_own_browser:
-                browser_binary_path = os.getenv("BROWSER_PATH", None) or browser_binary_path
+                browser_binary_path = (
+                    os.getenv("BROWSER_PATH", None) or browser_binary_path
+                )
                 if browser_binary_path == "":
                     browser_binary_path = None
-                browser_user_data = browser_user_data_dir or os.getenv("BROWSER_USER_DATA", None)
+                browser_user_data = browser_user_data_dir or os.getenv(
+                    "BROWSER_USER_DATA", None
+                )
                 if browser_user_data:
                     extra_args += [f"--user-data-dir={browser_user_data}"]
             else:
@@ -498,7 +498,7 @@ async def run_agent_task(
                     new_context_config=BrowserContextConfig(
                         window_width=window_w,
                         window_height=window_h,
-                    )
+                    ),
                 )
             )
 
@@ -539,7 +539,7 @@ async def run_agent_task(
 
         # Pass the webui_manager to callbacks when wrapping them
         async def step_callback_wrapper(
-                state: BrowserState, output: AgentOutput, step_num: int
+            state: BrowserState, output: AgentOutput, step_num: int
         ):
             await _handle_new_step(webui_manager, state, output, step_num)
 
@@ -608,7 +608,7 @@ async def run_agent_task(
                     await asyncio.sleep(0.2)
 
                 if (
-                        agent_task.done() or is_stopped
+                    agent_task.done() or is_stopped
                 ):  # If stopped or task finished while paused
                     break
 
@@ -659,8 +659,8 @@ async def run_agent_task(
                 yield update_dict
                 # Wait until response is submitted or task finishes
                 while (
-                        webui_manager.bu_response_event is not None
-                        and not agent_task.done()
+                    webui_manager.bu_response_event is not None
+                    and not agent_task.done()
                 ):
                     await asyncio.sleep(0.2)
                 # Restore UI after response submitted or if task ended unexpectedly
@@ -742,9 +742,9 @@ async def run_agent_task(
         except asyncio.CancelledError:
             logger.info("Agent task was cancelled.")
             if not any(
-                    "Cancelled" in msg.get("content", "")
-                    for msg in webui_manager.bu_chat_history
-                    if msg.get("role") == "assistant"
+                "Cancelled" in msg.get("content", "")
+                for msg in webui_manager.bu_chat_history
+                if msg.get("role") == "assistant"
             ):
                 webui_manager.bu_chat_history.append(
                     {"role": "assistant", "content": "**Task Cancelled**."}
@@ -756,9 +756,9 @@ async def run_agent_task(
                 f"**Agent Execution Error:**\n```\n{type(e).__name__}: {e}\n```"
             )
             if not any(
-                    error_message in msg.get("content", "")
-                    for msg in webui_manager.bu_chat_history
-                    if msg.get("role") == "assistant"
+                error_message in msg.get("content", "")
+                for msg in webui_manager.bu_chat_history
+                if msg.get("role") == "assistant"
             ):
                 webui_manager.bu_chat_history.append(
                     {"role": "assistant", "content": error_message}
@@ -814,7 +814,7 @@ async def run_agent_task(
             clear_button_comp: gr.update(interactive=True),
             chatbot_comp: gr.update(
                 value=webui_manager.bu_chat_history
-                      + [{"role": "assistant", "content": f"**Setup Error:** {e}"}]
+                + [{"role": "assistant", "content": f"**Setup Error:** {e}"}]
             ),
         }
 
@@ -823,7 +823,7 @@ async def run_agent_task(
 
 
 async def handle_submit(
-        webui_manager: WebuiManager, components: Dict[gr.components.Component, Any]
+    webui_manager: WebuiManager, components: Dict[gr.components.Component, Any]
 ):
     """Handles clicks on the main 'Submit' button."""
     user_input_comp = webui_manager.get_component_by_id("browser_use_agent.user_input")
@@ -1074,7 +1074,7 @@ def create_browser_use_agent_tab(webui_manager: WebuiManager):
     run_tab_outputs = list(tab_components.values())
 
     async def submit_wrapper(
-            components_dict: Dict[Component, Any],
+        components_dict: Dict[Component, Any],
     ) -> AsyncGenerator[Dict[Component, Any], None]:
         """Wrapper for handle_submit that yields its results."""
         async for update in handle_submit(webui_manager, components_dict):
