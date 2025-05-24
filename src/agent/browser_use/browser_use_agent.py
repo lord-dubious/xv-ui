@@ -4,11 +4,10 @@ import asyncio
 import logging
 import os
 import random
-<<<<<<< HEAD
+
 from typing import Optional, List, Any
-=======
+
 from typing import Optional, List
->>>>>>> d40bdc8 (feat: Add environment fallback for agent settings in browser_use_agent_tab)
 
 # from lmnr.sdk.decorators import observe
 from browser_use.agent.gif import create_history_gif

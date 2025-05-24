@@ -1,13 +1,12 @@
-import os
+import logging
+from typing import Any
 
 import gradio as gr
-import logging
-from gradio.components import Component
 
 from src.webui.webui_manager import WebuiManager
-from src.utils import config
 
 logger = logging.getLogger(__name__)
+
 
 async def close_browser(webui_manager: WebuiManager):
     """
@@ -27,10 +26,25 @@ async def close_browser(webui_manager: WebuiManager):
         await webui_manager.bu_browser.close()
         webui_manager.bu_browser = None
 
+
 def create_browser_settings_tab(webui_manager: WebuiManager):
     """
     Creates a browser settings tab.
     """
+    # Load persistent settings from environment
+    env_settings = webui_manager.load_env_settings()
+
+    def get_env_value(key: str, default: Any, type_cast=None):
+        val = env_settings.get(key, default)
+        if type_cast:
+            try:
+                if type_cast is bool:
+                    return str(val).lower() == "true"
+                return type_cast(val)
+            except (ValueError, TypeError):
+                return default
+        return val
+
     input_components = set(webui_manager.get_components())
     tab_components = {}
 
@@ -40,65 +54,68 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
                 label="Browser Binary Path",
                 lines=1,
                 interactive=True,
-                placeholder="e.g. '/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome'"
+                value=get_env_value("BROWSER_PATH", ""),
+                placeholder="e.g. '/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome'",
             )
             browser_user_data_dir = gr.Textbox(
                 label="Browser User Data Dir",
                 lines=1,
                 interactive=True,
+                value=get_env_value("BROWSER_USER_DATA", ""),
                 placeholder="Leave it empty if you use your default user data",
             )
     with gr.Group():
         with gr.Row():
             use_own_browser = gr.Checkbox(
                 label="Use Own Browser",
-                value=False,
+                value=get_env_value("USE_OWN_BROWSER", False, bool),
                 info="Use your existing browser instance",
-                interactive=True
+                interactive=True,
             )
             keep_browser_open = gr.Checkbox(
                 label="Keep Browser Open",
-                value=os.getenv("KEEP_BROWSER_OPEN", True),
+                value=get_env_value("KEEP_BROWSER_OPEN", True, bool),
                 info="Keep Browser Open between Tasks",
-                interactive=True
+                interactive=True,
             )
             headless = gr.Checkbox(
                 label="Headless Mode",
-                value=False,
+                value=get_env_value("HEADLESS", False, bool),
                 info="Run browser without GUI",
-                interactive=True
+                interactive=True,
             )
             disable_security = gr.Checkbox(
                 label="Disable Security",
-                value=False,
+                value=get_env_value("DISABLE_SECURITY", False, bool),
                 info="Disable browser security",
-                interactive=True
+                interactive=True,
             )
 
     with gr.Group():
         with gr.Row():
             window_w = gr.Number(
                 label="Window Width",
-                value=1280,
+                value=get_env_value("RESOLUTION_WIDTH", 1280, int),
                 info="Browser window width",
-                interactive=True
+                interactive=True,
             )
             window_h = gr.Number(
                 label="Window Height",
-                value=1100,
+                value=get_env_value("RESOLUTION_HEIGHT", 1100, int),
                 info="Browser window height",
-                interactive=True
+                interactive=True,
             )
     with gr.Group():
         with gr.Row():
             cdp_url = gr.Textbox(
                 label="CDP URL",
-                value=os.getenv("BROWSER_CDP", None),
+                value=get_env_value("BROWSER_CDP", ""),
                 info="CDP URL for browser remote debugging",
                 interactive=True,
             )
             wss_url = gr.Textbox(
                 label="WSS URL",
+                value=get_env_value("WSS_URL", ""),
                 info="WSS URL for browser remote debugging",
                 interactive=True,
             )
@@ -106,6 +123,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             save_recording_path = gr.Textbox(
                 label="Recording Path",
+                value=get_env_value("SAVE_RECORDING_PATH", ""),
                 placeholder="e.g. ./tmp/record_videos",
                 info="Path to save browser recordings",
                 interactive=True,
@@ -113,6 +131,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
 
             save_trace_path = gr.Textbox(
                 label="Trace Path",
+                value=get_env_value("SAVE_TRACE_PATH", ""),
                 placeholder="e.g. ./tmp/traces",
                 info="Path to save Agent traces",
                 interactive=True,
@@ -121,13 +140,13 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             save_agent_history_path = gr.Textbox(
                 label="Agent History Save Path",
-                value="./tmp/agent_history",
+                value=get_env_value("SAVE_AGENT_HISTORY_PATH", "./tmp/agent_history"),
                 info="Specify the directory where agent history should be saved.",
                 interactive=True,
             )
             save_download_path = gr.Textbox(
                 label="Save Directory for browser downloads",
-                value="./tmp/downloads",
+                value=get_env_value("SAVE_DOWNLOAD_PATH", "./tmp/downloads"),
                 info="Specify the directory where downloaded files should be saved.",
                 interactive=True,
             )
@@ -166,83 +185,91 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
 
     # Function to save a single browser setting to .env
     def save_browser_setting(setting_name, setting_value):
-        webui_manager.save_browser_settings_to_env(setting_name=setting_name, setting_value=setting_value)
+        webui_manager.save_browser_settings_to_env(
+            setting_name=setting_name, setting_value=setting_value
+        )
 
     # Connect change events to auto-save function
     browser_binary_path.change(
         fn=lambda value: save_browser_setting("browser_binary_path", value),
         inputs=[browser_binary_path],
-        outputs=[]
+        outputs=[],
     )
 
     browser_user_data_dir.change(
         fn=lambda value: save_browser_setting("browser_user_data_dir", value),
         inputs=[browser_user_data_dir],
-        outputs=[]
+        outputs=[],
+    )
+
+    use_own_browser.change(
+        fn=lambda value: save_browser_setting("use_own_browser", value),
+        inputs=[use_own_browser],
+        outputs=[],
     )
 
     keep_browser_open.change(
         fn=lambda value: save_browser_setting("keep_browser_open", value),
         inputs=[keep_browser_open],
-        outputs=[]
+        outputs=[],
     )
 
     cdp_url.change(
         fn=lambda value: save_browser_setting("cdp_url", value),
         inputs=[cdp_url],
-        outputs=[]
+        outputs=[],
     )
 
     window_w.change(
         fn=lambda value: save_browser_setting("window_w", value),
         inputs=[window_w],
-        outputs=[]
+        outputs=[],
     )
 
     window_h.change(
         fn=lambda value: save_browser_setting("window_h", value),
         inputs=[window_h],
-        outputs=[]
+        outputs=[],
     )
 
     headless.change(
         fn=lambda value: save_browser_setting("headless", value),
         inputs=[headless],
-        outputs=[]
+        outputs=[],
     )
 
     disable_security.change(
         fn=lambda value: save_browser_setting("disable_security", value),
         inputs=[disable_security],
-        outputs=[]
+        outputs=[],
     )
 
     save_recording_path.change(
         fn=lambda value: save_browser_setting("save_recording_path", value),
         inputs=[save_recording_path],
-        outputs=[]
+        outputs=[],
     )
 
     save_trace_path.change(
         fn=lambda value: save_browser_setting("save_trace_path", value),
         inputs=[save_trace_path],
-        outputs=[]
+        outputs=[],
     )
 
     save_agent_history_path.change(
         fn=lambda value: save_browser_setting("save_agent_history_path", value),
         inputs=[save_agent_history_path],
-        outputs=[]
+        outputs=[],
     )
 
     save_download_path.change(
         fn=lambda value: save_browser_setting("save_download_path", value),
         inputs=[save_download_path],
-        outputs=[]
+        outputs=[],
     )
 
     wss_url.change(
         fn=lambda value: save_browser_setting("wss_url", value),
         inputs=[wss_url],
-        outputs=[]
+        outputs=[],
     )

@@ -136,7 +136,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 interactive=True,
             )
 
-            initial_llm_model_choices = config.model_names.get(str(initial_llm_provider), [])
+            initial_llm_model_choices = config.model_names.get(
+                str(initial_llm_provider), []
+            )
             initial_llm_model_name = get_env_value(
                 "LLM_MODEL_NAME",
                 initial_llm_model_choices[0] if initial_llm_model_choices else "gpt-4o",
@@ -182,7 +184,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         with gr.Row():
             llm_base_url = gr.Textbox(
                 label="Base URL",
-                value=get_env_value(f"{str(initial_llm_provider).upper()}_ENDPOINT", ""),
+                value=get_env_value(
+                    f"{str(initial_llm_provider).upper()}_ENDPOINT", ""
+                ),
                 info="API endpoint URL (if required)",
             )
             llm_api_key = gr.Textbox(
@@ -204,7 +208,12 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             )
 
             initial_planner_model_choices = (
-                config.model_names.get(str(initial_planner_llm_provider) if initial_planner_llm_provider else "", [])
+                config.model_names.get(
+                    str(initial_planner_llm_provider)
+                    if initial_planner_llm_provider
+                    else "",
+                    [],
+                )
                 if initial_planner_llm_provider
                 else []
             )
@@ -256,7 +265,10 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             planner_llm_base_url = gr.Textbox(
                 label="Base URL",
                 value=get_env_value(
-                    f"{str(initial_planner_llm_provider).upper()}_ENDPOINT" if initial_planner_llm_provider else "", ""
+                    f"{str(initial_planner_llm_provider).upper()}_ENDPOINT"
+                    if initial_planner_llm_provider
+                    else "",
+                    "",
                 )
                 if initial_planner_llm_provider
                 else "",
@@ -266,7 +278,10 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                 label="API Key",
                 type="password",
                 value=get_env_value(
-                    f"{str(initial_planner_llm_provider).upper()}_API_KEY" if initial_planner_llm_provider else "", ""
+                    f"{str(initial_planner_llm_provider).upper()}_API_KEY"
+                    if initial_planner_llm_provider
+                    else "",
+                    "",
                 )
                 if initial_planner_llm_provider
                 else "",
@@ -309,137 +324,264 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             visible=True,
         )
 
+    # Improved Delay Settings UI
     with gr.Group():
-        with gr.Row():
-            step_delay_slider_minutes = gr.Slider(
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("STEP_DELAY_MINUTES", 0.0, float),
-                step=1,
-                label="Delay Between Steps (minutes)",
-                info="Time to wait in minutes (0-1440) before executing each agent step.",
-                interactive=True,
-            )
-            custom_step_delay_minutes = gr.Number(
-                label="Custom Step Delay (mins)",
-                value=get_env_value("STEP_DELAY_MINUTES", 0.0, float),
-                minimum=0,
-                maximum=1440,
-                interactive=True,
-            )
-            action_delay_slider_minutes = gr.Slider(
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("ACTION_DELAY_MINUTES", 0.0, float),
-                step=1,
-                label="Delay Between Actions (minutes)",
-                info="Time to wait in minutes (0-1440) between individual actions (if applicable; currently may not be supported by all agent bases).",
-                interactive=True,
-            )
-            custom_action_delay_minutes = gr.Number(
-                label="Custom Action Delay (mins)",
-                value=get_env_value("ACTION_DELAY_MINUTES", 0.0, float),
-                minimum=0,
-                maximum=1440,
-                interactive=True,
-            )
-            task_delay_slider_minutes = gr.Slider(
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("TASK_DELAY_MINUTES", 0.0, float),
-                step=1,
-                label="Delay Between Tasks (minutes)",
-                info="Time to wait in minutes (0-1440) before starting a new task or run (interpretation may vary based on execution context).",
-                interactive=True,
-            )
-            custom_task_delay_minutes = gr.Number(
-                label="Custom Task Delay (mins)",
-                value=get_env_value("TASK_DELAY_MINUTES", 0.0, float),
-                minimum=0,
-                maximum=1440,
-                interactive=True,
-            )
+        gr.Markdown("## ⏱️ Agent Timing & Delays")
+        gr.Markdown(
+            "Configure delays between agent operations to control execution speed and avoid rate limits."
+        )
 
-        # --- Step Delay Settings ---
-        with gr.Row():
-            step_enable_random_interval = get_env_value("STEP_ENABLE_RANDOM_INTERVAL", False, bool)
-            step_enable_random_interval_switch = gr.Checkbox(
-                label="🎲 Random Interval for Step Delay",
-                value=step_enable_random_interval,
-                interactive=True,
-                elem_classes=["switch-checkbox"]
-            )
-        with gr.Row(visible=step_enable_random_interval) as step_interval_row:
-            min_step_delay_slider_minutes = gr.Slider(
-                label="Min Step Delay (minutes)",
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("STEP_MIN_DELAY_MINUTES", 0.0, float),
-                step=1,
-                interactive=True,
-            )
-            max_step_delay_slider_minutes = gr.Slider(
-                label="Max Step Delay (minutes)",
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("STEP_MAX_DELAY_MINUTES", 0.0, float),
-                step=1,
-                interactive=True,
-            )
+        with gr.Tabs():
+            # Step Delays Tab
+            with gr.Tab("🚶 Step Delays"):
+                gr.Markdown(
+                    "**Step delays** occur before each agent reasoning step (between thinking phases)"
+                )
 
-        # --- Action Delay Settings ---
-        with gr.Row():
-            action_enable_random_interval = get_env_value("ACTION_ENABLE_RANDOM_INTERVAL", False, bool)
-            action_enable_random_interval_switch = gr.Checkbox(
-                label="🎲 Random Interval for Action Delay",
-                value=action_enable_random_interval,
-                interactive=True,
-                elem_classes=["switch-checkbox"]
-            )
-        with gr.Row(visible=action_enable_random_interval) as action_interval_row:
-            min_action_delay_slider_minutes = gr.Slider(
-                label="Min Action Delay (minutes)",
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("ACTION_MIN_DELAY_MINUTES", 0.0, float),
-                step=1,
-                interactive=True,
-            )
-            max_action_delay_slider_minutes = gr.Slider(
-                label="Max Action Delay (minutes)",
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("ACTION_MAX_DELAY_MINUTES", 0.0, float),
-                step=1,
-                interactive=True,
-            )
+                with gr.Row():
+                    step_delay_preset = gr.Dropdown(
+                        label="Quick Presets",
+                        choices=[
+                            ("No delay", "0"),
+                            ("Fast (30s)", "0.5"),
+                            ("Normal (2min)", "2"),
+                            ("Slow (5min)", "5"),
+                            ("Very slow (10min)", "10"),
+                            ("Custom", "custom"),
+                        ],
+                        value="0",
+                        interactive=True,
+                        info="Choose a preset or select 'Custom' for manual configuration",
+                    )
 
-        # --- Task Delay Settings ---
-        with gr.Row():
-            task_enable_random_interval = get_env_value("TASK_ENABLE_RANDOM_INTERVAL", False, bool)
-            task_enable_random_interval_switch = gr.Checkbox(
-                label="🎲 Random Interval for Task Delay",
-                value=task_enable_random_interval,
-                interactive=True,
-                elem_classes=["switch-checkbox"]
-            )
-        with gr.Row(visible=task_enable_random_interval) as task_interval_row:
-            min_task_delay_slider_minutes = gr.Slider(
-                label="Min Task Delay (minutes)",
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("TASK_MIN_DELAY_MINUTES", 0.0, float),
-                step=1,
-                interactive=True,
-            )
-            max_task_delay_slider_minutes = gr.Slider(
-                label="Max Task Delay (minutes)",
-                minimum=0,
-                maximum=1440,
-                value=get_env_value("TASK_MAX_DELAY_MINUTES", 0.0, float),
-                step=1,
-                interactive=True,
-            )
+                with gr.Row():
+                    step_enable_random_interval_switch = gr.Checkbox(
+                        label="🎲 Enable Random Intervals",
+                        value=get_env_value("STEP_ENABLE_RANDOM_INTERVAL", False, bool),
+                        interactive=True,
+                        info="Use random delays instead of fixed delays",
+                    )
+
+                with gr.Group() as step_fixed_group:
+                    with gr.Row():
+                        step_delay_value = gr.Number(
+                            label="Step Delay",
+                            value=get_env_value("STEP_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        step_delay_unit = gr.Dropdown(
+                            label="Unit",
+                            choices=[
+                                ("Seconds", "seconds"),
+                                ("Minutes", "minutes"),
+                                ("Hours", "hours"),
+                            ],
+                            value="minutes",
+                            interactive=True,
+                        )
+
+                with gr.Group(
+                    visible=get_env_value("STEP_ENABLE_RANDOM_INTERVAL", False, bool)
+                ) as step_random_group:
+                    gr.Markdown("**Random Interval Range:**")
+                    with gr.Row():
+                        step_min_delay = gr.Number(
+                            label="Minimum Delay",
+                            value=get_env_value("STEP_MIN_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        step_max_delay = gr.Number(
+                            label="Maximum Delay",
+                            value=get_env_value("STEP_MAX_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        step_random_unit = gr.Dropdown(
+                            label="Unit",
+                            choices=[
+                                ("Seconds", "seconds"),
+                                ("Minutes", "minutes"),
+                                ("Hours", "hours"),
+                            ],
+                            value="minutes",
+                            interactive=True,
+                        )
+
+            # Action Delays Tab
+            with gr.Tab("⚡ Action Delays"):
+                gr.Markdown(
+                    "**Action delays** occur between individual browser actions within a single step"
+                )
+
+                with gr.Row():
+                    action_delay_preset = gr.Dropdown(
+                        label="Quick Presets",
+                        choices=[
+                            ("No delay", "0"),
+                            ("Fast (5s)", "0.083"),
+                            ("Normal (30s)", "0.5"),
+                            ("Slow (1min)", "1"),
+                            ("Very slow (2min)", "2"),
+                            ("Custom", "custom"),
+                        ],
+                        value="0",
+                        interactive=True,
+                        info="Choose a preset or select 'Custom' for manual configuration",
+                    )
+
+                with gr.Row():
+                    action_enable_random_interval_switch = gr.Checkbox(
+                        label="🎲 Enable Random Intervals",
+                        value=get_env_value(
+                            "ACTION_ENABLE_RANDOM_INTERVAL", False, bool
+                        ),
+                        interactive=True,
+                        info="Use random delays instead of fixed delays",
+                    )
+
+                with gr.Group() as action_fixed_group:
+                    with gr.Row():
+                        action_delay_value = gr.Number(
+                            label="Action Delay",
+                            value=get_env_value("ACTION_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        action_delay_unit = gr.Dropdown(
+                            label="Unit",
+                            choices=[
+                                ("Seconds", "seconds"),
+                                ("Minutes", "minutes"),
+                                ("Hours", "hours"),
+                            ],
+                            value="minutes",
+                            interactive=True,
+                        )
+
+                with gr.Group(
+                    visible=get_env_value("ACTION_ENABLE_RANDOM_INTERVAL", False, bool)
+                ) as action_random_group:
+                    gr.Markdown("**Random Interval Range:**")
+                    with gr.Row():
+                        action_min_delay = gr.Number(
+                            label="Minimum Delay",
+                            value=get_env_value("ACTION_MIN_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        action_max_delay = gr.Number(
+                            label="Maximum Delay",
+                            value=get_env_value("ACTION_MAX_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        action_random_unit = gr.Dropdown(
+                            label="Unit",
+                            choices=[
+                                ("Seconds", "seconds"),
+                                ("Minutes", "minutes"),
+                                ("Hours", "hours"),
+                            ],
+                            value="minutes",
+                            interactive=True,
+                        )
+
+            # Task Delays Tab
+            with gr.Tab("📋 Task Delays"):
+                gr.Markdown(
+                    "**Task delays** occur at the beginning of each new task/run"
+                )
+
+                with gr.Row():
+                    task_delay_preset = gr.Dropdown(
+                        label="Quick Presets",
+                        choices=[
+                            ("No delay", "0"),
+                            ("Fast (1min)", "1"),
+                            ("Normal (5min)", "5"),
+                            ("Slow (15min)", "15"),
+                            ("Very slow (30min)", "30"),
+                            ("Custom", "custom"),
+                        ],
+                        value="0",
+                        interactive=True,
+                        info="Choose a preset or select 'Custom' for manual configuration",
+                    )
+
+                with gr.Row():
+                    task_enable_random_interval_switch = gr.Checkbox(
+                        label="🎲 Enable Random Intervals",
+                        value=get_env_value("TASK_ENABLE_RANDOM_INTERVAL", False, bool),
+                        interactive=True,
+                        info="Use random delays instead of fixed delays",
+                    )
+
+                with gr.Group() as task_fixed_group:
+                    with gr.Row():
+                        task_delay_value = gr.Number(
+                            label="Task Delay",
+                            value=get_env_value("TASK_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        task_delay_unit = gr.Dropdown(
+                            label="Unit",
+                            choices=[
+                                ("Seconds", "seconds"),
+                                ("Minutes", "minutes"),
+                                ("Hours", "hours"),
+                            ],
+                            value="minutes",
+                            interactive=True,
+                        )
+
+                with gr.Group(
+                    visible=get_env_value("TASK_ENABLE_RANDOM_INTERVAL", False, bool)
+                ) as task_random_group:
+                    gr.Markdown("**Random Interval Range:**")
+                    with gr.Row():
+                        task_min_delay = gr.Number(
+                            label="Minimum Delay",
+                            value=get_env_value("TASK_MIN_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        task_max_delay = gr.Number(
+                            label="Maximum Delay",
+                            value=get_env_value("TASK_MAX_DELAY_MINUTES", 0.0, float),
+                            minimum=0,
+                            maximum=1440,
+                            interactive=True,
+                            precision=2,
+                        )
+                        task_random_unit = gr.Dropdown(
+                            label="Unit",
+                            choices=[
+                                ("Seconds", "seconds"),
+                                ("Minutes", "minutes"),
+                                ("Hours", "hours"),
+                            ],
+                            value="minutes",
+                            interactive=True,
+                        )
 
     tab_components.update(
         dict(
@@ -465,21 +607,28 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             tool_calling_method=tool_calling_method,
             mcp_json_file=mcp_json_file,
             mcp_server_config=mcp_server_config,
-            step_delay_minutes=step_delay_slider_minutes,
-            custom_step_delay_minutes=custom_step_delay_minutes,
+            # New delay components
+            step_delay_preset=step_delay_preset,
+            step_delay_value=step_delay_value,
+            step_delay_unit=step_delay_unit,
             step_enable_random_interval=step_enable_random_interval_switch,
-            min_step_delay_minutes=min_step_delay_slider_minutes,
-            max_step_delay_minutes=max_step_delay_slider_minutes,
-            action_delay_minutes=action_delay_slider_minutes,
-            custom_action_delay_minutes=custom_action_delay_minutes,
+            step_min_delay=step_min_delay,
+            step_max_delay=step_max_delay,
+            step_random_unit=step_random_unit,
+            action_delay_preset=action_delay_preset,
+            action_delay_value=action_delay_value,
+            action_delay_unit=action_delay_unit,
             action_enable_random_interval=action_enable_random_interval_switch,
-            min_action_delay_minutes=min_action_delay_slider_minutes,
-            max_action_delay_minutes=max_action_delay_slider_minutes,
-            task_delay_minutes=task_delay_slider_minutes,
-            custom_task_delay_minutes=custom_task_delay_minutes,
+            action_min_delay=action_min_delay,
+            action_max_delay=action_max_delay,
+            action_random_unit=action_random_unit,
+            task_delay_preset=task_delay_preset,
+            task_delay_value=task_delay_value,
+            task_delay_unit=task_delay_unit,
             task_enable_random_interval=task_enable_random_interval_switch,
-            min_task_delay_minutes=min_task_delay_slider_minutes,
-            max_task_delay_minutes=max_task_delay_slider_minutes,
+            task_min_delay=task_min_delay,
+            task_max_delay=task_max_delay,
+            task_random_unit=task_random_unit,
         )
     )
     webui_manager.add_components("agent_settings", tab_components)
@@ -549,10 +698,18 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # Add a new function to save time interval settings
     def save_time_interval_settings(
-        step_delay_minutes=None, action_delay_minutes=None, task_delay_minutes=None,
-        step_enable_random_interval=None, min_step_delay_minutes=None, max_step_delay_minutes=None,
-        action_enable_random_interval=None, min_action_delay_minutes=None, max_action_delay_minutes=None,
-        task_enable_random_interval=None, min_task_delay_minutes=None, max_task_delay_minutes=None
+        step_delay_minutes=None,
+        action_delay_minutes=None,
+        task_delay_minutes=None,
+        step_enable_random_interval=None,
+        min_step_delay_minutes=None,
+        max_step_delay_minutes=None,
+        action_enable_random_interval=None,
+        min_action_delay_minutes=None,
+        max_action_delay_minutes=None,
+        task_enable_random_interval=None,
+        min_task_delay_minutes=None,
+        max_task_delay_minutes=None,
     ):
         env_vars = webui_manager.load_env_settings()
         # Fixed delays
@@ -565,7 +722,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
         # Step random interval settings
         if step_enable_random_interval is not None:
-            env_vars["STEP_ENABLE_RANDOM_INTERVAL"] = str(step_enable_random_interval).lower()
+            env_vars["STEP_ENABLE_RANDOM_INTERVAL"] = str(
+                step_enable_random_interval
+            ).lower()
         if min_step_delay_minutes is not None:
             env_vars["STEP_MIN_DELAY_MINUTES"] = str(min_step_delay_minutes)
         if max_step_delay_minutes is not None:
@@ -573,7 +732,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
         # Action random interval settings
         if action_enable_random_interval is not None:
-            env_vars["ACTION_ENABLE_RANDOM_INTERVAL"] = str(action_enable_random_interval).lower()
+            env_vars["ACTION_ENABLE_RANDOM_INTERVAL"] = str(
+                action_enable_random_interval
+            ).lower()
         if min_action_delay_minutes is not None:
             env_vars["ACTION_MIN_DELAY_MINUTES"] = str(min_action_delay_minutes)
         if max_action_delay_minutes is not None:
@@ -581,7 +742,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
         # Task random interval settings
         if task_enable_random_interval is not None:
-            env_vars["TASK_ENABLE_RANDOM_INTERVAL"] = str(task_enable_random_interval).lower()
+            env_vars["TASK_ENABLE_RANDOM_INTERVAL"] = str(
+                task_enable_random_interval
+            ).lower()
         if min_task_delay_minutes is not None:
             env_vars["TASK_MIN_DELAY_MINUTES"] = str(min_task_delay_minutes)
         if max_task_delay_minutes is not None:
@@ -589,10 +752,114 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
         webui_manager.save_env_settings(env_vars)
 
+    # Add a new function to save main LLM settings
+    def save_main_llm_settings(
+        model_name=None,
+        temperature=None,
+        use_vision=None,
+        ollama_num_ctx=None,
+        max_steps=None,
+        max_actions=None,
+        max_input_tokens=None,
+        tool_calling_method=None,
+        override_system_prompt=None,
+        extend_system_prompt=None,
+    ):
+        env_vars = webui_manager.load_env_settings()
+        if model_name is not None:
+            env_vars["LLM_MODEL_NAME"] = str(model_name)
+        if temperature is not None:
+            env_vars["LLM_TEMPERATURE"] = str(temperature)
+        if use_vision is not None:
+            env_vars["USE_VISION"] = str(use_vision).lower()
+        if ollama_num_ctx is not None:
+            env_vars["OLLAMA_NUM_CTX"] = str(ollama_num_ctx)
+        if max_steps is not None:
+            env_vars["MAX_STEPS"] = str(max_steps)
+        if max_actions is not None:
+            env_vars["MAX_ACTIONS"] = str(max_actions)
+        if max_input_tokens is not None:
+            env_vars["MAX_INPUT_TOKENS"] = str(max_input_tokens)
+        if tool_calling_method is not None:
+            env_vars["TOOL_CALLING_METHOD"] = str(tool_calling_method)
+        if override_system_prompt is not None:
+            env_vars["OVERRIDE_SYSTEM_PROMPT"] = str(override_system_prompt)
+        if extend_system_prompt is not None:
+            env_vars["EXTEND_SYSTEM_PROMPT"] = str(extend_system_prompt)
+        webui_manager.save_env_settings(env_vars)
+
     # Connect change events to auto-save functions
     llm_provider.change(
         fn=lambda provider: save_llm_api_setting(provider=provider),
         inputs=[llm_provider],
+        outputs=[],
+    )
+
+    llm_model_name.change(
+        fn=lambda model_name: save_main_llm_settings(model_name=model_name),
+        inputs=[llm_model_name],
+        outputs=[],
+    )
+
+    llm_temperature.change(
+        fn=lambda temperature: save_main_llm_settings(temperature=temperature),
+        inputs=[llm_temperature],
+        outputs=[],
+    )
+
+    use_vision.change(
+        fn=lambda use_vision: save_main_llm_settings(use_vision=use_vision),
+        inputs=[use_vision],
+        outputs=[],
+    )
+
+    ollama_num_ctx.change(
+        fn=lambda ollama_num_ctx: save_main_llm_settings(ollama_num_ctx=ollama_num_ctx),
+        inputs=[ollama_num_ctx],
+        outputs=[],
+    )
+
+    max_steps.change(
+        fn=lambda max_steps: save_main_llm_settings(max_steps=max_steps),
+        inputs=[max_steps],
+        outputs=[],
+    )
+
+    max_actions.change(
+        fn=lambda max_actions: save_main_llm_settings(max_actions=max_actions),
+        inputs=[max_actions],
+        outputs=[],
+    )
+
+    max_input_tokens.change(
+        fn=lambda max_input_tokens: save_main_llm_settings(
+            max_input_tokens=max_input_tokens
+        ),
+        inputs=[max_input_tokens],
+        outputs=[],
+    )
+
+    tool_calling_method.change(
+        fn=lambda tool_calling_method: save_main_llm_settings(
+            tool_calling_method=tool_calling_method
+        ),
+        inputs=[tool_calling_method],
+        outputs=[],
+    )
+
+    override_system_prompt.change(
+        fn=lambda override_system_prompt: save_main_llm_settings(
+            override_system_prompt=override_system_prompt
+        ),
+        inputs=[override_system_prompt],
+        outputs=[],
+    )
+
+    extend_system_prompt.change(
+        fn=lambda extend_system_prompt: save_main_llm_settings(
+            extend_system_prompt=extend_system_prompt
+        ),
+        inputs=[extend_system_prompt],
         outputs=[],
     )
 
@@ -651,122 +918,211 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         outputs=[],
     )
 
-    # Setup synchronized delay settings using the helper function
-    setup_synchronized_delay_setting(
-        step_delay_slider_minutes,
-        custom_step_delay_minutes,
-        'step_delay_minutes',
-        save_time_interval_settings
-    )
-    setup_synchronized_delay_setting(
-        action_delay_slider_minutes,
-        custom_action_delay_minutes,
-        'action_delay_minutes',
-        save_time_interval_settings
-    )
-    setup_synchronized_delay_setting(
-        task_delay_slider_minutes,
-        custom_task_delay_minutes,
-        'task_delay_minutes',
-        save_time_interval_settings
-    )
+    # Helper functions for the new delay UI
+    def convert_to_minutes(value, unit):
+        """Convert delay value to minutes based on unit"""
+        if unit == "seconds":
+            return value / 60
+        elif unit == "hours":
+            return value * 60
+        else:  # minutes
+            return value
 
-    # --- Define visibility and interactivity update logic ---
-    def update_delay_interactivity(switch_state):
-        # If switch is True (random interval enabled):
-        # - Interval row is visible and interactive
-        # - Fixed delay inputs are NOT interactive
-        # If switch is False (random interval disabled):
-        # - Interval row is hidden
-        # - Fixed delay inputs are interactive
+    def apply_preset(preset_value, delay_type):
+        """Apply preset delay value"""
+        if preset_value == "custom":
+            return gr.update(), gr.update(interactive=True)
+        else:
+            minutes = float(preset_value)
+            return gr.update(value=minutes), gr.update(interactive=False)
+
+    def toggle_random_mode(enable_random, delay_type):
+        """Toggle between fixed and random delay modes"""
         return [
-            gr.update(visible=switch_state),  # For interval row
-            gr.update(interactive=not switch_state),  # For fixed_delay_number_input
-            gr.update(interactive=not switch_state),  # For fixed_delay_descriptive_slider
+            gr.update(visible=not enable_random),  # fixed group
+            gr.update(visible=enable_random),  # random group
         ]
 
-    # --- Connect visibility logic for Step Delay ---
+    def save_delay_setting(
+        delay_type,
+        value=None,
+        unit=None,
+        enable_random=None,
+        min_delay=None,
+        max_delay=None,
+        random_unit=None,
+    ):
+        """Save delay settings to environment"""
+        env_vars = webui_manager.load_env_settings()
+
+        if enable_random is not None:
+            env_vars[f"{delay_type.upper()}_ENABLE_RANDOM_INTERVAL"] = str(
+                enable_random
+            ).lower()
+
+        if value is not None and unit is not None:
+            minutes = convert_to_minutes(value, unit)
+            env_vars[f"{delay_type.upper()}_DELAY_MINUTES"] = str(minutes)
+
+        if min_delay is not None and random_unit is not None:
+            min_minutes = convert_to_minutes(min_delay, random_unit)
+            env_vars[f"{delay_type.upper()}_MIN_DELAY_MINUTES"] = str(min_minutes)
+
+        if max_delay is not None and random_unit is not None:
+            max_minutes = convert_to_minutes(max_delay, random_unit)
+            env_vars[f"{delay_type.upper()}_MAX_DELAY_MINUTES"] = str(max_minutes)
+
+        webui_manager.save_env_settings(env_vars)
+
+    # Connect preset dropdowns
+    step_delay_preset.change(
+        fn=lambda preset: apply_preset(preset, "step"),
+        inputs=[step_delay_preset],
+        outputs=[step_delay_value, step_delay_value],
+    )
+    action_delay_preset.change(
+        fn=lambda preset: apply_preset(preset, "action"),
+        inputs=[action_delay_preset],
+        outputs=[action_delay_value, action_delay_value],
+    )
+    task_delay_preset.change(
+        fn=lambda preset: apply_preset(preset, "task"),
+        inputs=[task_delay_preset],
+        outputs=[task_delay_value, task_delay_value],
+    )
+
+    # Connect random mode toggles
     step_enable_random_interval_switch.change(
-        fn=update_delay_interactivity,
+        fn=lambda enable: toggle_random_mode(enable, "step"),
         inputs=[step_enable_random_interval_switch],
-        outputs=[
-            step_interval_row,
-            custom_step_delay_minutes,
-            step_delay_slider_minutes,
-        ],
+        outputs=[step_fixed_group, step_random_group],
     )
-
-    # --- Connect visibility logic for Action Delay ---
     action_enable_random_interval_switch.change(
-        fn=update_delay_interactivity,
+        fn=lambda enable: toggle_random_mode(enable, "action"),
         inputs=[action_enable_random_interval_switch],
-        outputs=[
-            action_interval_row,
-            custom_action_delay_minutes,
-            action_delay_slider_minutes,
-        ],
+        outputs=[action_fixed_group, action_random_group],
     )
-
-    # --- Connect visibility logic for Task Delay ---
     task_enable_random_interval_switch.change(
-        fn=update_delay_interactivity,
+        fn=lambda enable: toggle_random_mode(enable, "task"),
         inputs=[task_enable_random_interval_switch],
-        outputs=[
-            task_interval_row,
-            custom_task_delay_minutes,
-            task_delay_slider_minutes,
-        ],
+        outputs=[task_fixed_group, task_random_group],
     )
 
-    # --- Connect save logic for new interval components ---
-    # Step delay random interval
+    # Connect auto-save for all delay settings
+    # Step delays
+    step_delay_value.change(
+        fn=lambda value, unit: save_delay_setting("step", value=value, unit=unit),
+        inputs=[step_delay_value, step_delay_unit],
+        outputs=[],
+    )
+    step_delay_unit.change(
+        fn=lambda unit, value: save_delay_setting("step", value=value, unit=unit),
+        inputs=[step_delay_unit, step_delay_value],
+        outputs=[],
+    )
     step_enable_random_interval_switch.change(
-        fn=lambda x: save_time_interval_settings(step_enable_random_interval=x),
+        fn=lambda enable: save_delay_setting("step", enable_random=enable),
         inputs=[step_enable_random_interval_switch],
         outputs=[],
     )
-    min_step_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(min_step_delay_minutes=x),
-        inputs=[min_step_delay_slider_minutes],
+    step_min_delay.change(
+        fn=lambda min_val, unit: save_delay_setting(
+            "step", min_delay=min_val, random_unit=unit
+        ),
+        inputs=[step_min_delay, step_random_unit],
         outputs=[],
     )
-    max_step_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(max_step_delay_minutes=x),
-        inputs=[max_step_delay_slider_minutes],
+    step_max_delay.change(
+        fn=lambda max_val, unit: save_delay_setting(
+            "step", max_delay=max_val, random_unit=unit
+        ),
+        inputs=[step_max_delay, step_random_unit],
+        outputs=[],
+    )
+    step_random_unit.change(
+        fn=lambda unit, min_val, max_val: [
+            save_delay_setting("step", min_delay=min_val, random_unit=unit),
+            save_delay_setting("step", max_delay=max_val, random_unit=unit),
+        ],
+        inputs=[step_random_unit, step_min_delay, step_max_delay],
         outputs=[],
     )
 
-    # Action delay random interval
+    # Action delays
+    action_delay_value.change(
+        fn=lambda value, unit: save_delay_setting("action", value=value, unit=unit),
+        inputs=[action_delay_value, action_delay_unit],
+        outputs=[],
+    )
+    action_delay_unit.change(
+        fn=lambda unit, value: save_delay_setting("action", value=value, unit=unit),
+        inputs=[action_delay_unit, action_delay_value],
+        outputs=[],
+    )
     action_enable_random_interval_switch.change(
-        fn=lambda x: save_time_interval_settings(action_enable_random_interval=x),
+        fn=lambda enable: save_delay_setting("action", enable_random=enable),
         inputs=[action_enable_random_interval_switch],
         outputs=[],
     )
-    min_action_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(min_action_delay_minutes=x),
-        inputs=[min_action_delay_slider_minutes],
+    action_min_delay.change(
+        fn=lambda min_val, unit: save_delay_setting(
+            "action", min_delay=min_val, random_unit=unit
+        ),
+        inputs=[action_min_delay, action_random_unit],
         outputs=[],
     )
-    max_action_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(max_action_delay_minutes=x),
-        inputs=[max_action_delay_slider_minutes],
+    action_max_delay.change(
+        fn=lambda max_val, unit: save_delay_setting(
+            "action", max_delay=max_val, random_unit=unit
+        ),
+        inputs=[action_max_delay, action_random_unit],
+        outputs=[],
+    )
+    action_random_unit.change(
+        fn=lambda unit, min_val, max_val: [
+            save_delay_setting("action", min_delay=min_val, random_unit=unit),
+            save_delay_setting("action", max_delay=max_val, random_unit=unit),
+        ],
+        inputs=[action_random_unit, action_min_delay, action_max_delay],
         outputs=[],
     )
 
-    # Task delay random interval
+    # Task delays
+    task_delay_value.change(
+        fn=lambda value, unit: save_delay_setting("task", value=value, unit=unit),
+        inputs=[task_delay_value, task_delay_unit],
+        outputs=[],
+    )
+    task_delay_unit.change(
+        fn=lambda unit, value: save_delay_setting("task", value=value, unit=unit),
+        inputs=[task_delay_unit, task_delay_value],
+        outputs=[],
+    )
     task_enable_random_interval_switch.change(
-        fn=lambda x: save_time_interval_settings(task_enable_random_interval=x),
+        fn=lambda enable: save_delay_setting("task", enable_random=enable),
         inputs=[task_enable_random_interval_switch],
         outputs=[],
     )
-    min_task_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(min_task_delay_minutes=x),
-        inputs=[min_task_delay_slider_minutes],
+    task_min_delay.change(
+        fn=lambda min_val, unit: save_delay_setting(
+            "task", min_delay=min_val, random_unit=unit
+        ),
+        inputs=[task_min_delay, task_random_unit],
         outputs=[],
     )
-    max_task_delay_slider_minutes.change(
-        fn=lambda x: save_time_interval_settings(max_task_delay_minutes=x),
-        inputs=[max_task_delay_slider_minutes],
+    task_max_delay.change(
+        fn=lambda max_val, unit: save_delay_setting(
+            "task", max_delay=max_val, random_unit=unit
+        ),
+        inputs=[task_max_delay, task_random_unit],
+        outputs=[],
+    )
+    task_random_unit.change(
+        fn=lambda unit, min_val, max_val: [
+            save_delay_setting("task", min_delay=min_val, random_unit=unit),
+            save_delay_setting("task", max_delay=max_val, random_unit=unit),
+        ],
+        inputs=[task_random_unit, task_min_delay, task_max_delay],
         outputs=[],
     )
 
