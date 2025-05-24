@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import random
-from typing import Optional
+from typing import Optional, List, Any
 
 # from lmnr.sdk.decorators import observe
 from browser_use.agent.gif import create_history_gif
@@ -15,6 +15,7 @@ from browser_use.agent.views import (
     AgentHistoryList,
     AgentStepInfo,
     ToolCallingMethod,
+    ActionModel,
 )
 from browser_use.browser.views import BrowserStateHistory
 from browser_use.utils import time_execution_async
@@ -46,6 +47,49 @@ class BrowserUseAgent(Agent):
         else:
             return tool_calling_method
 
+    async def multi_act(self, actions: List[ActionModel], check_for_new_elements: bool = True) -> ActionResult:
+        """
+        Override the parent multi_act method to add delays between actions.
+        Executes multiple actions with configurable delays between each action.
+        
+        Args:
+            actions: List of actions to execute
+            check_for_new_elements: Whether to check for new elements after each action
+            
+        Returns:
+            ActionResult from executing the actions
+        """
+        # Execute the first action without delay
+        if not actions:
+            return ActionResult(result=None, include_in_memory=False)
+            
+        # Execute first action without delay
+        result = await super().multi_act([actions[0]], check_for_new_elements=check_for_new_elements)
+        
+        # Execute remaining actions with delays between them
+        for action in actions[1:]:
+            # Apply ACTION delay between individual actions
+            await self._apply_delay("ACTION")
+            
+            # Execute the next action
+            next_result = await super().multi_act([action], check_for_new_elements=check_for_new_elements)
+            
+            # Update the result (append any results/errors)
+            if next_result.result:
+                if result.result:
+                    if isinstance(result.result, list):
+                        result.result.extend(next_result.result if isinstance(next_result.result, list) else [next_result.result])
+                    else:
+                        result.result = [result.result]
+                        result.result.extend(next_result.result if isinstance(next_result.result, list) else [next_result.result])
+                else:
+                    result.result = next_result.result
+                    
+            if next_result.error:
+                result.error = next_result.error
+                
+        return result
+        
     async def _apply_delay(self, delay_type: str) -> None:
         """
         Apply a delay based on the delay type (STEP, ACTION, or TASK).
