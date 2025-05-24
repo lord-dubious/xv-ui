@@ -275,14 +275,15 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             planner_llm_api_key = gr.Textbox(
                 label="API Key",
                 type="password",
-                value=get_env_value(
-                    f"{str(initial_planner_llm_provider).upper()}_API_KEY"
+                value=(
+                    get_env_value(
+                        env_settings,
+                        f"{str(initial_planner_llm_provider).upper()}_API_KEY",
+                        ""
+                    )
                     if initial_planner_llm_provider
-                    else "",
-                    "",
-                )
-                if initial_planner_llm_provider
-                else "",
+                    else ""
+                ),
                 info="Your API key (auto-saved to .env)",
             )
 
@@ -609,8 +610,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                             interactive=True,
                         )
 
-    tab_components.update(
-        dict(
+    tab_components.update({
             override_system_prompt=override_system_prompt,
             extend_system_prompt=extend_system_prompt,
             llm_provider=llm_provider,
@@ -655,8 +655,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             task_min_delay=task_min_delay,
             task_max_delay=task_max_delay,
             task_random_unit=task_random_unit,
-        )
-    )
+        })
     webui_manager.add_components("agent_settings", tab_components)
 
     llm_provider.change(
