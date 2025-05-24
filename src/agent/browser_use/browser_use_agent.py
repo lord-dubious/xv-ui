@@ -4,7 +4,11 @@ import asyncio
 import logging
 import os
 import random
+<<<<<<< HEAD
 from typing import Optional, List, Any
+=======
+from typing import Optional, List
+>>>>>>> d40bdc8 (feat: Add environment fallback for agent settings in browser_use_agent_tab)
 
 # from lmnr.sdk.decorators import observe
 from browser_use.agent.gif import create_history_gif
@@ -17,6 +21,7 @@ from browser_use.agent.views import (
     ToolCallingMethod,
     ActionModel,
 )
+from browser_use.controller.registry.views import ActionModel
 from browser_use.browser.views import BrowserStateHistory
 from browser_use.utils import time_execution_async
 from dotenv import load_dotenv
@@ -47,24 +52,22 @@ class BrowserUseAgent(Agent):
         else:
             return tool_calling_method
 
-    async def multi_act(self, actions: List[ActionModel], check_for_new_elements: bool = True) -> ActionResult:
+    async def multi_act(self, actions: List[ActionModel], check_for_new_elements: bool = True) -> List[ActionResult]:
         """
-        Override the parent multi_act method to add delays between actions.
-        Executes multiple actions with configurable delays between each action.
+        Override the parent multi_act method to add delays between individual actions.
         
         Args:
             actions: List of actions to execute
             check_for_new_elements: Whether to check for new elements after each action
             
         Returns:
-            ActionResult from executing the actions
+            List[ActionResult] from executing all actions
         """
-        # Execute the first action without delay
         if not actions:
-            return ActionResult(result=None, include_in_memory=False)
-            
-        # Execute first action without delay
-        result = await super().multi_act([actions[0]], check_for_new_elements=check_for_new_elements)
+            return []
+        
+        # Execute the first action without delay
+        results = await super().multi_act([actions[0]], check_for_new_elements=check_for_new_elements)
         
         # Execute remaining actions with delays between them
         for action in actions[1:]:
@@ -72,24 +75,12 @@ class BrowserUseAgent(Agent):
             await self._apply_delay("ACTION")
             
             # Execute the next action
-            next_result = await super().multi_act([action], check_for_new_elements=check_for_new_elements)
+            next_results = await super().multi_act([action], check_for_new_elements=check_for_new_elements)
             
-            # Update the result (append any results/errors)
-            if next_result.result:
-                if result.result:
-                    if isinstance(result.result, list):
-                        result.result.extend(next_result.result if isinstance(next_result.result, list) else [next_result.result])
-                    else:
-                        result.result = [result.result]
-                        result.result.extend(next_result.result if isinstance(next_result.result, list) else [next_result.result])
-                else:
-                    result.result = next_result.result
-                    
-            if next_result.error:
-                result.error = next_result.error
+            # Combine results
+            results.extend(next_results)
                 
-        return result
-        
+        return results
     async def _apply_delay(self, delay_type: str) -> None:
         """
         Apply a delay based on the delay type (STEP, ACTION, or TASK).
@@ -214,10 +205,6 @@ class BrowserUseAgent(Agent):
 
                 # Process step delay
                 await self._apply_delay("STEP")
-                
-                # Process action delay (if applicable for current step)
-                # Note: Action delay might not be applicable depending on implementation
-                await self._apply_delay("ACTION")
                 
                 # Process task delay (if applicable for current task/run)
                 # Note: Task delay might not be applicable depending on implementation

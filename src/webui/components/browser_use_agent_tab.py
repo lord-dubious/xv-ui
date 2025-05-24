@@ -324,21 +324,47 @@ async def run_agent_task(
 
     # --- Agent Settings ---
     # Access settings values via components dict, getting IDs from webui_manager
+    # Load persistent settings from environment as fallback (same as agent_settings_tab.py)
+    env_settings = webui_manager.load_env_settings()
+    
+    def get_env_value(key: str, default: Any, type_cast=None):
+        val = env_settings.get(key, default)
+        if type_cast:
+            try:
+                if type_cast is bool:
+                    return str(val).lower() == "true"
+                return type_cast(val)
+            except (ValueError, TypeError):
+                return default
+        return val
+    
     def get_setting(key, default=None):
         comp = webui_manager.id_to_component.get(f"agent_settings.{key}")
-        return components.get(comp, default) if comp else default
+        ui_value = components.get(comp) if comp else None
+        if ui_value is not None:
+            return ui_value
+        # Fallback to environment variable (map component key to env var)
+        env_key = key.upper()
+        return get_env_value(env_key, default)
 
     override_system_prompt = get_setting("override_system_prompt") or None
     extend_system_prompt = get_setting("extend_system_prompt") or None
-    llm_provider_name = get_setting(
-        "llm_provider", None
-    )  # Default to None if not found
-    llm_model_name = get_setting("llm_model_name", None)
-    llm_temperature = get_setting("llm_temperature", 0.6)
-    use_vision = get_setting("use_vision", True)
-    ollama_num_ctx = get_setting("ollama_num_ctx", 16000)
-    llm_base_url = get_setting("llm_base_url") or None
-    llm_api_key = get_setting("llm_api_key") or None
+    
+    # Get LLM settings with proper environment fallbacks and defaults
+    llm_provider_name = get_setting("llm_provider") or get_env_value("LLM_PROVIDER", "openai")
+    llm_model_name = get_setting("llm_model_name") or get_env_value("LLM_MODEL_NAME", "gpt-4o")
+    llm_temperature = get_env_value("LLM_TEMPERATURE", get_setting("llm_temperature", 0.6), float)
+    use_vision = get_env_value("USE_VISION", get_setting("use_vision", True), bool)
+    ollama_num_ctx = get_env_value("OLLAMA_NUM_CTX", get_setting("ollama_num_ctx", 16000), int)
+    
+    # Get API settings with provider-specific env var fallbacks
+    if llm_provider_name:
+        provider_upper = str(llm_provider_name).upper()
+        llm_base_url = get_setting("llm_base_url") or get_env_value(f"{provider_upper}_ENDPOINT", None)
+        llm_api_key = get_setting("llm_api_key") or get_env_value(f"{provider_upper}_API_KEY", None)
+    else:
+        llm_base_url = get_setting("llm_base_url") or None
+        llm_api_key = get_setting("llm_api_key") or None
     max_steps = get_setting("max_steps", 100)
     max_actions = get_setting("max_actions", 10)
     max_input_tokens = get_setting("max_input_tokens", 128000)
