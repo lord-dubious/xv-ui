@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import random
+from typing import Optional
 
 # from lmnr.sdk.decorators import observe
 from browser_use.agent.gif import create_history_gif
@@ -45,6 +46,75 @@ class BrowserUseAgent(Agent):
         else:
             return tool_calling_method
 
+    async def _apply_delay(self, delay_type: str) -> None:
+        """
+        Apply a delay based on the delay type (STEP, ACTION, or TASK).
+        Uses either random interval or fixed delay based on environment configuration.
+        
+        Args:
+            delay_type: Type of delay to apply ("STEP", "ACTION", or "TASK")
+        """
+        logger = logging.getLogger(__name__)
+        
+        # Check if random interval is enabled for this delay type
+        enable_random_delay_str = os.environ.get(f"{delay_type}_ENABLE_RANDOM_INTERVAL", "false")
+        enable_random_delay = enable_random_delay_str.lower() == "true"
+        
+        if enable_random_delay:
+            # Get min and max delay minutes from environment
+            min_delay_minutes_str = os.environ.get(f"{delay_type}_MIN_DELAY_MINUTES", "0.0")
+            if not min_delay_minutes_str: min_delay_minutes_str = "0.0"
+            
+            max_delay_minutes_str = os.environ.get(f"{delay_type}_MAX_DELAY_MINUTES", "0.0")
+            if not max_delay_minutes_str: max_delay_minutes_str = "0.0"
+            
+            try:
+                min_delay_minutes_raw = float(min_delay_minutes_str)
+                max_delay_minutes_raw = float(max_delay_minutes_str)
+                
+                min_seconds_raw = min_delay_minutes_raw * 60
+                max_seconds_raw = max_delay_minutes_raw * 60
+                
+                actual_min_seconds = min(min_seconds_raw, max_seconds_raw)
+                actual_max_seconds = max(min_seconds_raw, max_seconds_raw)
+                
+                if actual_max_seconds > 0.0:
+                    random_delay_seconds = random.uniform(actual_min_seconds, actual_max_seconds)
+                    delay_minutes = random_delay_seconds / 60
+                    logger.info(
+                        f"Applying random {delay_type.lower()} delay between {actual_min_seconds / 60:.1f} and "
+                        f"{actual_max_seconds / 60:.1f} minutes. Chosen: {random_delay_seconds:.1f} seconds "
+                        f"({delay_minutes:.2f} minutes)."
+                    )
+                    await asyncio.sleep(random_delay_seconds)
+                else:
+                    logger.info(f"Random {delay_type.lower()} delay is enabled but min/max values result in no delay.")
+                    
+            except ValueError:
+                logger.warning(
+                    f"Invalid values for {delay_type}_MIN_DELAY_MINUTES ('{min_delay_minutes_str}') or "
+                    f"{delay_type}_MAX_DELAY_MINUTES ('{max_delay_minutes_str}'). Expected floats."
+                )
+        else:
+            # Fixed delay (existing logic)
+            delay_minutes_str = os.environ.get(f"{delay_type}_DELAY_MINUTES", "0.0")
+            if not delay_minutes_str:  # Handle empty string case
+                delay_minutes_str = "0.0"
+                
+            try:
+                delay_minutes = float(delay_minutes_str)
+                if delay_minutes > 0.0:
+                    delay_seconds = delay_minutes * 60
+                    logger.info(
+                        f"Waiting for fixed {delay_type.lower()} delay of {delay_seconds:.1f} seconds "
+                        f"({delay_minutes:.2f} minutes)..."
+                    )
+                    await asyncio.sleep(delay_seconds)
+            except ValueError:
+                logger.warning(
+                    f"Invalid value for {delay_type}_DELAY_MINUTES: {delay_minutes_str}. Expected a float."
+                )
+    
     @time_execution_async("--run (agent)")
     async def run(
             self, max_steps: int = 100, on_step_start: AgentHookFunc | None = None,
@@ -98,58 +168,17 @@ class BrowserUseAgent(Agent):
                 if on_step_start is not None:
                     await on_step_start(self)
 
-                # Step delay logic
-                enable_random_step_delay_str = os.environ.get("STEP_ENABLE_RANDOM_INTERVAL", "false")
-                enable_random_step_delay = enable_random_step_delay_str.lower() == "true"
-
-                if enable_random_step_delay:
-                    min_delay_minutes_str = os.environ.get("STEP_MIN_DELAY_MINUTES", "0.0")
-                    if not min_delay_minutes_str: min_delay_minutes_str = "0.0"
-                    max_delay_minutes_str = os.environ.get("STEP_MAX_DELAY_MINUTES", "0.0")
-                    if not max_delay_minutes_str: max_delay_minutes_str = "0.0"
-
-                    try:
-                        min_delay_minutes_raw = float(min_delay_minutes_str)
-                        max_delay_minutes_raw = float(max_delay_minutes_str)
-
-                        min_seconds_raw = min_delay_minutes_raw * 60
-                        max_seconds_raw = max_delay_minutes_raw * 60
-
-                        actual_min_seconds = min(min_seconds_raw, max_seconds_raw)
-                        actual_max_seconds = max(min_seconds_raw, max_seconds_raw)
-
-                        if actual_max_seconds > 0.0:
-                            random_delay_seconds = random.uniform(actual_min_seconds, actual_max_seconds)
-                            logger.info(
-                                f"Applying random step delay between {actual_min_seconds / 60:.1f} and "
-                                f"{actual_max_seconds / 60:.1f} minutes. Chosen: {random_delay_seconds:.1f} seconds."
-                            )
-                            await asyncio.sleep(random_delay_seconds)
-                        else:
-                            logger.info("Random step delay is enabled but min/max values result in no delay.")
-
-                    except ValueError:
-                        logger.warning(
-                            f"Invalid values for STEP_MIN_DELAY_MINUTES ('{min_delay_minutes_str}') or "
-                            f"STEP_MAX_DELAY_MINUTES ('{max_delay_minutes_str}'). Expected floats."
-                        )
-                else:
-                    # Fixed step delay (existing logic)
-                    step_delay_minutes_str = os.environ.get("STEP_DELAY_MINUTES", "0.0")
-                    if not step_delay_minutes_str:  # Handle empty string case
-                        step_delay_minutes_str = "0.0"
-                    try:
-                        step_delay_minutes = float(step_delay_minutes_str)
-                        if step_delay_minutes > 0.0:
-                            step_delay_seconds = step_delay_minutes * 60
-                            logger.info(
-                                f"Waiting for fixed {step_delay_seconds:.1f} seconds ({step_delay_minutes:.1f} minutes) before next step..."
-                            )
-                            await asyncio.sleep(step_delay_seconds)
-                    except ValueError:
-                        logger.warning(
-                            f"Invalid value for STEP_DELAY_MINUTES: {step_delay_minutes_str}. Expected a float."
-                        )
+                # Process step delay
+                await self._apply_delay("STEP")
+                
+                # Process action delay (if applicable for current step)
+                # Note: Action delay might not be applicable depending on implementation
+                await self._apply_delay("ACTION")
+                
+                # Process task delay (if applicable for current task/run)
+                # Note: Task delay might not be applicable depending on implementation
+                if step == 1:  # Only apply task delay on first step
+                    await self._apply_delay("TASK")
 
                 step_info = AgentStepInfo(step_number=step, max_steps=max_steps)
                 await self.step(step_info)
