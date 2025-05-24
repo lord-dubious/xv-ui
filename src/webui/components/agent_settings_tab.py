@@ -12,21 +12,45 @@ from src.webui.webui_manager import WebuiManager
 logger = logging.getLogger(__name__)
 
 
-def update_model_dropdown(llm_provider: str) -> gr.Dropdown:
+def update_model_dropdown(
+    llm_provider: str, webui_manager=None, is_planner=False
+) -> gr.Dropdown:
     """
     Update the model name dropdown with predefined models for the selected provider.
+    Preserves the currently saved model name if it's valid for the new provider.
 
     Args:
         llm_provider: The LLM provider name
+        webui_manager: WebUI manager instance for loading saved settings
+        is_planner: Whether this is for the planner LLM (affects which env var to check)
 
     Returns:
         Updated Gradio Dropdown component
     """
     # Use predefined models for the selected provider
     if llm_provider in config.model_names:
+        choices = config.model_names[llm_provider]
+
+        # Try to preserve the currently saved model name if it's valid for this provider
+        saved_model = None
+        if webui_manager:
+            try:
+                env_settings = webui_manager.load_env_settings()
+                # Use different env var for planner vs main LLM
+                env_var = "PLANNER_LLM_MODEL_NAME" if is_planner else "LLM_MODEL_NAME"
+                saved_model = env_settings.get(env_var)
+            except Exception:
+                pass
+
+        # Use saved model if it's in the choices, otherwise use first choice
+        if saved_model and saved_model in choices:
+            default_value = saved_model
+        else:
+            default_value = choices[0] if choices else ""
+
         return gr.Dropdown(
-            choices=config.model_names[llm_provider],
-            value=config.model_names[llm_provider][0],
+            choices=choices,
+            value=default_value,
             interactive=True,
         )
     else:
@@ -755,7 +779,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         outputs=ollama_num_ctx,
     )
     llm_provider.change(
-        lambda provider: update_model_dropdown(provider),
+        lambda provider: update_model_dropdown(provider, webui_manager),
         inputs=[llm_provider],
         outputs=[llm_model_name],
     )
@@ -765,7 +789,9 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         outputs=[planner_ollama_num_ctx],
     )
     planner_llm_provider.change(
-        lambda provider: update_model_dropdown(provider),
+        lambda provider: update_model_dropdown(
+            provider, webui_manager, is_planner=True
+        ),
         inputs=[planner_llm_provider],
         outputs=[planner_llm_model_name],
     )
@@ -905,8 +931,16 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         webui_manager.save_env_settings(env_vars)
 
     # Connect change events to auto-save functions
+    def save_llm_provider(provider):
+        """Save LLM provider to environment variables"""
+        env_vars = webui_manager.load_env_settings()
+        env_vars["LLM_PROVIDER"] = str(provider)
+        webui_manager.save_env_settings(env_vars)
+        # Also save API settings
+        save_llm_api_setting(provider=provider)
+
     llm_provider.change(
-        fn=lambda provider: save_llm_api_setting(provider=provider),
+        fn=save_llm_provider,
         inputs=[llm_provider],
     )
 
@@ -978,8 +1012,16 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         inputs=[llm_base_url],
     )
 
+    def save_planner_llm_provider(provider):
+        """Save Planner LLM provider to environment variables"""
+        env_vars = webui_manager.load_env_settings()
+        env_vars["PLANNER_LLM_PROVIDER"] = str(provider)
+        webui_manager.save_env_settings(env_vars)
+        # Also save API settings
+        save_planner_api_setting(provider=provider)
+
     planner_llm_provider.change(
-        fn=lambda provider: save_planner_api_setting(provider=provider),
+        fn=save_planner_llm_provider,
         inputs=[planner_llm_provider],
     )
 
