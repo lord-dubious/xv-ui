@@ -31,6 +31,51 @@ SKIP_LLM_API_KEY_VERIFICATION = (
 
 
 class BrowserUseAgent(Agent):
+    def __init__(self, *args, **kwargs):
+        """Initialize the agent with cached delay settings for better performance."""
+        super().__init__(*args, **kwargs)
+        self._delay_settings_cache = {}
+        self._cache_delay_settings()
+
+    def _cache_delay_settings(self):
+        """Cache delay settings from environment variables to avoid repeated file reads."""
+        delay_types = ["STEP", "ACTION", "TASK"]
+
+        for delay_type in delay_types:
+            # Cache random interval settings
+            enable_random_str = os.environ.get(
+                f"{delay_type}_ENABLE_RANDOM_INTERVAL", "false"
+            )
+            enable_random = enable_random_str.lower() == "true"
+
+            # Cache fixed delay settings
+            delay_minutes_str = os.environ.get(f"{delay_type}_DELAY_MINUTES", "0.0")
+            if not delay_minutes_str:
+                delay_minutes_str = "0.0"
+
+            # Cache random delay range settings
+            min_delay_str = os.environ.get(f"{delay_type}_MIN_DELAY_MINUTES", "0.0")
+            if not min_delay_str:
+                min_delay_str = "0.0"
+
+            max_delay_str = os.environ.get(f"{delay_type}_MAX_DELAY_MINUTES", "0.0")
+            if not max_delay_str:
+                max_delay_str = "0.0"
+
+            self._delay_settings_cache[delay_type] = {
+                "enable_random": enable_random,
+                "delay_minutes": delay_minutes_str,
+                "min_delay_minutes": min_delay_str,
+                "max_delay_minutes": max_delay_str,
+            }
+
+        logger.debug(f"Cached delay settings: {self._delay_settings_cache}")
+
+    def invalidate_delay_cache(self):
+        """Invalidate and refresh the delay settings cache."""
+        self._cache_delay_settings()
+        logger.debug("Delay settings cache invalidated and refreshed")
+
     def _set_tool_calling_method(self) -> ToolCallingMethod | None:
         tool_calling_method = self.settings.tool_calling_method
         if tool_calling_method == "auto":
@@ -86,32 +131,23 @@ class BrowserUseAgent(Agent):
     async def _apply_delay(self, delay_type: str) -> None:
         """
         Apply a delay based on the delay type (STEP, ACTION, or TASK).
-        Uses either random interval or fixed delay based on environment configuration.
+        Uses cached settings for better performance.
 
         Args:
             delay_type: Type of delay to apply ("STEP", "ACTION", or "TASK")
         """
-        logger = logging.getLogger(__name__)
+        # Get cached settings for this delay type
+        settings = self._delay_settings_cache.get(delay_type)
+        if not settings:
+            logger.warning(f"No cached settings found for delay type: {delay_type}")
+            return
 
-        # Check if random interval is enabled for this delay type
-        enable_random_delay_str = os.environ.get(
-            f"{delay_type}_ENABLE_RANDOM_INTERVAL", "false"
-        )
-        enable_random_delay = enable_random_delay_str.lower() == "true"
+        enable_random_delay = settings["enable_random"]
 
         if enable_random_delay:
-            # Get min and max delay minutes from environment
-            min_delay_minutes_str = os.environ.get(
-                f"{delay_type}_MIN_DELAY_MINUTES", "0.0"
-            )
-            if not min_delay_minutes_str:
-                min_delay_minutes_str = "0.0"
-
-            max_delay_minutes_str = os.environ.get(
-                f"{delay_type}_MAX_DELAY_MINUTES", "0.0"
-            )
-            if not max_delay_minutes_str:
-                max_delay_minutes_str = "0.0"
+            # Use cached random delay settings
+            min_delay_minutes_str = settings["min_delay_minutes"]
+            max_delay_minutes_str = settings["max_delay_minutes"]
 
             try:
                 min_delay_minutes_raw = float(min_delay_minutes_str)
@@ -141,14 +177,12 @@ class BrowserUseAgent(Agent):
 
             except ValueError:
                 logger.warning(
-                    f"Invalid values for {delay_type}_MIN_DELAY_MINUTES ('{min_delay_minutes_str}') or "
-                    f"{delay_type}_MAX_DELAY_MINUTES ('{max_delay_minutes_str}'). Expected floats."
+                    f"Invalid cached values for {delay_type} random delay: "
+                    f"min='{min_delay_minutes_str}', max='{max_delay_minutes_str}'. Expected floats."
                 )
         else:
-            # Fixed delay (existing logic)
-            delay_minutes_str = os.environ.get(f"{delay_type}_DELAY_MINUTES", "0.0")
-            if not delay_minutes_str:  # Handle empty string case
-                delay_minutes_str = "0.0"
+            # Use cached fixed delay settings
+            delay_minutes_str = settings["delay_minutes"]
 
             try:
                 delay_minutes = float(delay_minutes_str)
@@ -161,7 +195,7 @@ class BrowserUseAgent(Agent):
                     await asyncio.sleep(delay_seconds)
             except ValueError:
                 logger.warning(
-                    f"Invalid value for {delay_type}_DELAY_MINUTES: {delay_minutes_str}. Expected a float."
+                    f"Invalid cached value for {delay_type}_DELAY_MINUTES: '{delay_minutes_str}'. Expected a float."
                 )
 
     @time_execution_async("--run (agent)")

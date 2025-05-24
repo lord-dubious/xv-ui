@@ -959,7 +959,7 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         max_delay=None,
         random_unit=None,
     ):
-        """Save delay settings to environment"""
+        """Save delay settings to environment and invalidate agent cache"""
         env_vars = webui_manager.load_env_settings()
 
         if enable_random is not None:
@@ -980,6 +980,15 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             env_vars[f"{delay_type.upper()}_MAX_DELAY_MINUTES"] = str(max_minutes)
 
         webui_manager.save_env_settings(env_vars)
+
+        # Invalidate delay cache in active agent if it exists
+        if hasattr(webui_manager, "bu_agent") and webui_manager.bu_agent:
+            try:
+                webui_manager.bu_agent.invalidate_delay_cache()
+                logger.debug(f"Invalidated delay cache for {delay_type} settings")
+            except AttributeError:
+                # Agent might not have the cache method (older version)
+                logger.debug("Agent does not support delay cache invalidation")
 
     # Connect preset dropdowns
     step_delay_preset.change(
