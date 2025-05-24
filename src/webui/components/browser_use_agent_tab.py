@@ -341,22 +341,30 @@ async def run_agent_task(
     extend_system_prompt = get_setting("extend_system_prompt") or None
 
     # Get LLM settings with proper environment fallbacks and defaults
-    llm_provider_name = get_setting("llm_provider") or get_env_value(env_settings, "LLM_PROVIDER", "openai"
+    llm_provider_name = get_setting("llm_provider") or get_env_value(
+        env_settings, "LLM_PROVIDER", "openai"
     )
-    llm_model_name = get_setting("llm_model_name") or get_env_value(env_settings, "LLM_MODEL_NAME", "gpt-4o"
+    llm_model_name = get_setting("llm_model_name") or get_env_value(
+        env_settings, "LLM_MODEL_NAME", "gpt-4o"
     )
-    llm_temperature = get_env_value(env_settings, "LLM_TEMPERATURE", get_setting("llm_temperature", 0.6), float
+    llm_temperature = get_env_value(
+        env_settings, "LLM_TEMPERATURE", get_setting("llm_temperature", 0.6), float
     )
-    use_vision = get_env_value(env_settings, "USE_VISION", get_setting("use_vision", True), bool)
-    ollama_num_ctx = get_env_value(env_settings, "OLLAMA_NUM_CTX", get_setting("ollama_num_ctx", 16000), int
+    use_vision = get_env_value(
+        env_settings, "USE_VISION", get_setting("use_vision", True), bool
+    )
+    ollama_num_ctx = get_env_value(
+        env_settings, "OLLAMA_NUM_CTX", get_setting("ollama_num_ctx", 16000), int
     )
 
     # Get API settings with provider-specific env var fallbacks
     if llm_provider_name:
-        provider_upper = str(llm_provider_name).upper()
-        llm_base_url = get_setting("llm_base_url") or get_env_value(env_settings, f"{provider_upper}_ENDPOINT", None
+        provider_upper = llm_provider_name.upper()
+        llm_base_url = get_setting("llm_base_url") or get_env_value(
+            env_settings, f"{provider_upper}_ENDPOINT", None
         )
-        llm_api_key = get_setting("llm_api_key") or get_env_value(env_settings, f"{provider_upper}_API_KEY", None
+        llm_api_key = get_setting("llm_api_key") or get_env_value(
+            env_settings, f"{provider_upper}_API_KEY", None
         )
     else:
         llm_base_url = get_setting("llm_base_url") or None

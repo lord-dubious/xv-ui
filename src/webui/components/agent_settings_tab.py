@@ -124,20 +124,19 @@ def _create_system_prompt_components(
     Returns:
         Tuple of (override_system_prompt, extend_system_prompt) components
     """
-    with gr.Group():
-        with gr.Column():
-            override_system_prompt = gr.Textbox(
-                label="Override system prompt",
-                lines=4,
-                interactive=True,
-                value=get_env_value(env_settings, "OVERRIDE_SYSTEM_PROMPT", ""),
-            )
-            extend_system_prompt = gr.Textbox(
-                label="Extend system prompt",
-                lines=4,
-                interactive=True,
-                value=get_env_value(env_settings, "EXTEND_SYSTEM_PROMPT", ""),
-            )
+    with gr.Group(), gr.Column():
+        override_system_prompt = gr.Textbox(
+            label="Override system prompt",
+            lines=4,
+            interactive=True,
+            value=get_env_value(env_settings, "OVERRIDE_SYSTEM_PROMPT", ""),
+        )
+        extend_system_prompt = gr.Textbox(
+            label="Extend system prompt",
+            lines=4,
+            interactive=True,
+            value=get_env_value(env_settings, "EXTEND_SYSTEM_PROMPT", ""),
+        )
     return override_system_prompt, extend_system_prompt
 
 
@@ -170,9 +169,7 @@ def _create_llm_components(env_settings):
                 interactive=True,
             )
 
-            initial_llm_model_choices = config.model_names.get(
-                str(initial_llm_provider), []
-            )
+            initial_llm_model_choices = config.model_names.get(initial_llm_provider, [])
             initial_llm_model_name = get_env_value(
                 env_settings,
                 "LLM_MODEL_NAME",
@@ -255,12 +252,7 @@ def _create_planner_components(env_settings):
             )
 
             initial_planner_model_choices = (
-                config.model_names.get(
-                    str(initial_planner_llm_provider)
-                    if initial_planner_llm_provider
-                    else "",
-                    [],
-                )
+                config.model_names.get(initial_planner_llm_provider, [])
                 if initial_planner_llm_provider
                 else []
             )
@@ -317,7 +309,7 @@ def _create_planner_components(env_settings):
                 value=(
                     get_env_value(
                         env_settings,
-                        f"{str(initial_planner_llm_provider).upper()}_ENDPOINT",
+                        f"{initial_planner_llm_provider.upper()}_ENDPOINT",
                         "",
                     )
                     if initial_planner_llm_provider
@@ -331,7 +323,7 @@ def _create_planner_components(env_settings):
                 value=(
                     get_env_value(
                         env_settings,
-                        f"{str(initial_planner_llm_provider).upper()}_API_KEY",
+                        f"{initial_planner_llm_provider.upper()}_API_KEY",
                         "",
                     )
                     if initial_planner_llm_provider
@@ -476,28 +468,27 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         info="Use random delays instead of fixed delays",
                     )
 
-                with gr.Group() as step_fixed_group:
-                    with gr.Row():
-                        step_delay_value = gr.Number(
-                            label="Step Delay",
-                            value=get_env_value(
-                                env_settings, "STEP_DELAY_MINUTES", 0.0, float
-                            ),
-                            minimum=0,
-                            maximum=1440,
-                            interactive=True,
-                            precision=2,
-                        )
-                        step_delay_unit = gr.Dropdown(
-                            label="Unit",
-                            choices=[
-                                ("Seconds", "seconds"),
-                                ("Minutes", "minutes"),
-                                ("Hours", "hours"),
-                            ],
-                            value="minutes",
-                            interactive=True,
-                        )
+                with gr.Group() as step_fixed_group, gr.Row():
+                    step_delay_value = gr.Number(
+                        label="Step Delay",
+                        value=get_env_value(
+                            env_settings, "STEP_DELAY_MINUTES", 0.0, float
+                        ),
+                        minimum=0,
+                        maximum=1440,
+                        interactive=True,
+                        precision=2,
+                    )
+                    step_delay_unit = gr.Dropdown(
+                        label="Unit",
+                        choices=[
+                            ("Seconds", "seconds"),
+                            ("Minutes", "minutes"),
+                            ("Hours", "hours"),
+                        ],
+                        value="minutes",
+                        interactive=True,
+                    )
 
                 with gr.Group(
                     visible=get_env_value(
@@ -569,28 +560,27 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         info="Use random delays instead of fixed delays",
                     )
 
-                with gr.Group() as action_fixed_group:
-                    with gr.Row():
-                        action_delay_value = gr.Number(
-                            label="Action Delay",
-                            value=get_env_value(
-                                env_settings, "ACTION_DELAY_MINUTES", 0.0, float
-                            ),
-                            minimum=0,
-                            maximum=1440,
-                            interactive=True,
-                            precision=2,
-                        )
-                        action_delay_unit = gr.Dropdown(
-                            label="Unit",
-                            choices=[
-                                ("Seconds", "seconds"),
-                                ("Minutes", "minutes"),
-                                ("Hours", "hours"),
-                            ],
-                            value="minutes",
-                            interactive=True,
-                        )
+                with gr.Group() as action_fixed_group, gr.Row():
+                    action_delay_value = gr.Number(
+                        label="Action Delay",
+                        value=get_env_value(
+                            env_settings, "ACTION_DELAY_MINUTES", 0.0, float
+                        ),
+                        minimum=0,
+                        maximum=1440,
+                        interactive=True,
+                        precision=2,
+                    )
+                    action_delay_unit = gr.Dropdown(
+                        label="Unit",
+                        choices=[
+                            ("Seconds", "seconds"),
+                            ("Minutes", "minutes"),
+                            ("Hours", "hours"),
+                        ],
+                        value="minutes",
+                        interactive=True,
+                    )
 
                 with gr.Group(
                     visible=get_env_value(
@@ -662,28 +652,27 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
                         info="Use random delays instead of fixed delays",
                     )
 
-                with gr.Group() as task_fixed_group:
-                    with gr.Row():
-                        task_delay_value = gr.Number(
-                            label="Task Delay",
-                            value=get_env_value(
-                                env_settings, "TASK_DELAY_MINUTES", 0.0, float
-                            ),
-                            minimum=0,
-                            maximum=1440,
-                            interactive=True,
-                            precision=2,
-                        )
-                        task_delay_unit = gr.Dropdown(
-                            label="Unit",
-                            choices=[
-                                ("Seconds", "seconds"),
-                                ("Minutes", "minutes"),
-                                ("Hours", "hours"),
-                            ],
-                            value="minutes",
-                            interactive=True,
-                        )
+                with gr.Group() as task_fixed_group, gr.Row():
+                    task_delay_value = gr.Number(
+                        label="Task Delay",
+                        value=get_env_value(
+                            env_settings, "TASK_DELAY_MINUTES", 0.0, float
+                        ),
+                        minimum=0,
+                        maximum=1440,
+                        interactive=True,
+                        precision=2,
+                    )
+                    task_delay_unit = gr.Dropdown(
+                        label="Unit",
+                        choices=[
+                            ("Seconds", "seconds"),
+                            ("Minutes", "minutes"),
+                            ("Hours", "hours"),
+                        ],
+                        value="minutes",
+                        interactive=True,
+                    )
 
                 with gr.Group(
                     visible=get_env_value(
@@ -1187,10 +1176,10 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         outputs=[],
     )
     step_random_unit.change(
-        fn=lambda unit, min_val, max_val: [
+        fn=lambda unit, min_val, max_val: (
             save_delay_setting("step", min_delay=min_val, random_unit=unit),
             save_delay_setting("step", max_delay=max_val, random_unit=unit),
-        ],
+        ),
         inputs=[step_random_unit, step_min_delay, step_max_delay],
         outputs=[],
     )
@@ -1226,10 +1215,10 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         outputs=[],
     )
     action_random_unit.change(
-        fn=lambda unit, min_val, max_val: [
+        fn=lambda unit, min_val, max_val: (
             save_delay_setting("action", min_delay=min_val, random_unit=unit),
             save_delay_setting("action", max_delay=max_val, random_unit=unit),
-        ],
+        ),
         inputs=[action_random_unit, action_min_delay, action_max_delay],
         outputs=[],
     )
@@ -1265,10 +1254,10 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         outputs=[],
     )
     task_random_unit.change(
-        fn=lambda unit, min_val, max_val: [
+        fn=lambda unit, min_val, max_val: (
             save_delay_setting("task", min_delay=min_val, random_unit=unit),
             save_delay_setting("task", max_delay=max_val, random_unit=unit),
-        ],
+        ),
         inputs=[task_random_unit, task_min_delay, task_max_delay],
         outputs=[],
     )
