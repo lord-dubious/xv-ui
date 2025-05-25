@@ -155,13 +155,15 @@ class StealthBrowser(Browser):
             f"🎭 Launching Patchright browser with {len(chrome_args)} stealth arguments"
         )
 
-        # Launch with or without custom executable path
+        # Patchright Best Practice: Use launch_persistent_context for maximum stealth
         launch_options = {
-            "channel": "chromium",
+            "channel": "chrome",  # Use Google Chrome (not chromium) for best stealth
             "headless": self.config.headless,
+            "no_viewport": True,  # Critical for stealth
             "args": args[self.config.browser_class],
             "handle_sigterm": False,
             "handle_sigint": False,
+            "user_data_dir": "./tmp/xagent/chrome_profile",  # Persistent context for stealth
         }
 
         # Add proxy configuration (commented out for this branch)
@@ -178,7 +180,8 @@ class StealthBrowser(Browser):
         if self.config.browser_binary_path:
             launch_options["executable_path"] = self.config.browser_binary_path
 
-        browser = await browser_class.launch(**launch_options)
+        # Use launch_persistent_context for maximum stealth (Patchright best practice)
+        browser = await browser_class.launch_persistent_context(**launch_options)
 
         logger.info(
             "🎭 Patchright browser launched successfully with stealth capabilities"

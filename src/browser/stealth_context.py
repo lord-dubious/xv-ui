@@ -75,22 +75,9 @@ class StealthBrowserContext(BrowserContext):
                 }
             """)
 
-            # Chrome-optimized headers for maximum stealth
-            await context.set_extra_http_headers(
-                {
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                    "Upgrade-Insecure-Requests": "1",
-                    "Sec-Fetch-Site": "none",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-User": "?1",
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-                    "Sec-Ch-Ua-Mobile": "?0",
-                    "Sec-Ch-Ua-Platform": '"Windows"',
-                }
-            )
+            # Patchright Best Practice: do NOT add custom browser headers or user_agent
+            # Patchright handles headers automatically for maximum stealth
+            # await context.set_extra_http_headers({...})  # REMOVED per best practices
 
             logger.info(
                 "✅ Patchright Chrome stealth configurations applied successfully"
@@ -105,27 +92,12 @@ class StealthBrowserContext(BrowserContext):
             "🎭 Creating StealthBrowserContext with Patchright Chrome optimizations..."
         )
 
-        # Chrome-optimized viewport
-        viewport = {
-            "width": self.config.window_width,
-            "height": self.config.window_height,
-        }
+        # Patchright Best Practice: Use no_viewport=True and no custom user_agent
+        # The browser should already be launched with launch_persistent_context
 
-        # Chrome-realistic user agent (Patchright optimized)
-        user_agent = (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
-
-        # Create the Patchright context with minimal options for compatibility
-        context = await browser.new_context(
-            viewport=viewport,
-            user_agent=user_agent,
-            java_script_enabled=True,
-            accept_downloads=True,
-            ignore_https_errors=True,
-            bypass_csp=True,
-        )
+        # For persistent context, we don't create a new context - it's already created
+        # Just return the existing context from the browser
+        context = browser  # With launch_persistent_context, browser IS the context
 
         # Apply Patchright-specific stealth measures
         await self._setup_context_stealth(context)
@@ -142,15 +114,14 @@ class StealthBrowserContext(BrowserContext):
             "engine": "Patchright",
             "browser_support": "Chrome/Chromium only",
             "stealth_features": [
-                "Runtime.enable leak patched",
-                "Console.enable leak patched",
-                "Command flags optimized",
-                "webdriver property hidden",
-                "chrome runtime spoofed",
-                "plugins spoofed",
-                "enhanced headers",
-                "fingerprint resistance",
-                "closed shadow root support",
+                "Runtime.enable leak patched (isolated ExecutionContexts)",
+                "Console.enable leak patched (console disabled)",
+                "Command flags optimized (--enable-automation removed)",
+                "AutomationControlled disabled",
+                "Closed shadow root support",
+                "Persistent context with no_viewport",
+                "Google Chrome channel (not Chromium)",
+                "No custom headers/user_agent (Patchright handles)",
             ],
             "detection_bypass": [
                 "Cloudflare",
@@ -174,8 +145,10 @@ class StealthBrowserContext(BrowserContext):
                 "trace_enabled": bool(self.config.trace_path),
             },
             "limitations": [
-                "Chrome/Chromium only",
+                "Chrome/Chromium only (Firefox/Webkit not supported)",
                 "Console API disabled for stealth",
                 "Init scripts use Routes (minimal timing attack risk)",
+                "Best with Google Chrome channel (not Chromium)",
+                "Requires persistent context for maximum stealth",
             ],
         }
