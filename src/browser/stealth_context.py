@@ -6,7 +6,7 @@ with enhanced anti-detection capabilities using Patchright's Chrome-only optimiz
 """
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from browser_use.browser.browser import Browser
 from browser_use.browser.context import (
@@ -86,7 +86,7 @@ class StealthBrowserContext(BrowserContext):
         except Exception as e:
             logger.warning(f"⚠️ Some Patchright stealth configurations failed: {e}")
 
-    async def _create_context(self, browser) -> PatchrightBrowserContext:
+    async def _create_context(self, browser: Any) -> PatchrightBrowserContext:
         """Create a new Patchright browser context with Chrome-optimized stealth."""
         logger.info(
             "🎭 Creating StealthBrowserContext with Patchright Chrome optimizations..."
