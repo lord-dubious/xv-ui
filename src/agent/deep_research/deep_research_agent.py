@@ -74,7 +74,6 @@ async def run_single_browser_task(
     browser_binary_path = browser_config.get("browser_binary_path", None)
     wss_url = browser_config.get("wss_url", None)
     cdp_url = browser_config.get("cdp_url", None)
-    browser_config.get("disable_security", False)
 
     bu_browser = None
     bu_browser_context = None
@@ -446,7 +445,7 @@ def _save_plan_to_md(plan: List[ResearchCategoryItem], output_dir: str):
             f.write("# Research Plan\n\n")
             for cat_idx, category in enumerate(plan):
                 f.write(f"## {cat_idx + 1}. {category['category_name']}\n\n")
-                for task_idx, task in enumerate(category["tasks"]):
+                for _task_idx, task in enumerate(category["tasks"]):
                     marker = (
                         "- [x]"
                         if task["status"] == "completed"
@@ -978,7 +977,7 @@ async def synthesis_node(state: DeepResearchState) -> Dict[str, Any]:
     plan_summary = "\nResearch Plan Followed:\n"
     for cat_idx, category in enumerate(plan):
         plan_summary += f"\n#### Category {cat_idx + 1}: {category['category_name']}\n"
-        for task_idx, task in enumerate(category["tasks"]):
+        for _task_idx, task in enumerate(category["tasks"]):
             marker = (
                 "[x]"
                 if task["status"] == "completed"

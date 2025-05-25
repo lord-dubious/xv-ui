@@ -130,18 +130,9 @@ class StealthBrowser(Browser):
         browser_class = getattr(playwright, self.config.browser_class)
         args = {
             "chromium": list(chrome_args),
-            "firefox": [
-                *{
-                    "-no-remote",
-                    *self.config.extra_browser_args,
-                }
-            ],
-            "webkit": [
-                *{
-                    "--no-startup-window",
-                    *self.config.extra_browser_args,
-                }
-            ],
+            "firefox": ["-no-remote"] + list(self.config.extra_browser_args or []),
+            "webkit": ["--no-startup-window"]
+            + list(self.config.extra_browser_args or []),
         }
 
         logger.info(
@@ -235,9 +226,16 @@ class StealthBrowser(Browser):
 
     def get_stealth_info(self) -> dict:
         """Get information about Patchright stealth capabilities."""
+        try:
+            import patchright
+
+            version = getattr(patchright, "__version__", "unknown")
+        except Exception:
+            version = "unknown"
+
         return {
             "engine": "Patchright",
-            "version": "1.52.3",
+            "version": version,
             "stealth_features": [
                 "Runtime.enable leak patched",
                 "Console.enable leak patched",

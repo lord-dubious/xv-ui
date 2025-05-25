@@ -295,8 +295,6 @@ class XAgent:
                 "Patchright Runtime.enable patched",
                 "Console.enable patched",
                 "Enhanced anti-detection",
-                "SOCKS5 proxy rotation",
-                "Connection isolation",
             ],
         }
 

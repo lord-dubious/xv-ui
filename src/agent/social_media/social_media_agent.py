@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+import os
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -91,6 +93,9 @@ class SocialMediaAgent:
         logger.info(f"Target platforms: {platforms or ['all']}")
         logger.info(f"Task ID: {self.current_task_id}")
 
+        # Initialize browser variable for cleanup
+        browser = None
+
         try:
             # Create browser instance
             browser = await self._create_browser()
@@ -141,7 +146,7 @@ class SocialMediaAgent:
         finally:
             # Cleanup
             try:
-                if "browser" in locals():
+                if browser:
                     await browser.close()
             except Exception as e:
                 logger.error(f"Error closing browser: {e}")
@@ -214,8 +219,6 @@ class SocialMediaAgent:
 
     async def _save_results(self, result: str, save_dir: str):
         """Save social media task results."""
-        import json
-        import os
 
         os.makedirs(save_dir, exist_ok=True)
 
@@ -247,8 +250,6 @@ class SocialMediaAgent:
         """Get current agent status."""
         return {
             "current_task_id": self.current_task_id,
-            "is_running": self.runner and not self.runner.done()
-            if self.runner
-            else False,
+            "is_running": bool(self.runner and not self.runner.done()),
             "stopped": self.stopped,
         }
