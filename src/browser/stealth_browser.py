@@ -10,18 +10,7 @@ import socket
 from typing import Optional
 
 from browser_use.browser.browser import IN_DOCKER, Browser, BrowserConfig
-from browser_use.browser.chrome import (
-    CHROME_ARGS,
-    CHROME_DETERMINISTIC_RENDERING_ARGS,
-    CHROME_DISABLE_SECURITY_ARGS,
-    CHROME_DOCKER_ARGS,
-    CHROME_HEADLESS_ARGS,
-)
 from browser_use.browser.context import BrowserContextConfig
-from browser_use.browser.utils.screen_resolution import (
-    get_screen_resolution,
-    get_window_adjustments,
-)
 from browser_use.utils import time_execution_async
 
 # Import Patchright instead of Playwright
@@ -84,45 +73,40 @@ class StealthBrowser(Browser):
         """Sets up and returns a Patchright Browser instance with enhanced stealth measures."""
         # Note: For Patchright, we can use browser_binary_path to specify Chrome location
 
-        # Use the configured window size from new_context_config if available
-        if (
-            not self.config.headless
-            and hasattr(self.config, "new_context_config")
-            and hasattr(self.config.new_context_config, "window_width")
-            and hasattr(self.config.new_context_config, "window_height")
-        ):
-            screen_size = {
-                "width": self.config.new_context_config.window_width,
-                "height": self.config.new_context_config.window_height,
-            }
-            offset_x, offset_y = get_window_adjustments()
-        elif self.config.headless:
-            screen_size = {"width": 1920, "height": 1080}
-            offset_x, offset_y = 0, 0
-        else:
-            screen_size = get_screen_resolution()
-            offset_x, offset_y = get_window_adjustments()
+        # Patchright Best Practice: no_viewport=True handles window sizing automatically
+        # No need for manual screen size or window positioning with persistent context
 
-        # Enhanced Chrome args for Patchright stealth
-        chrome_args = {
-            f"--remote-debugging-port={self.config.chrome_remote_debugging_port}",
-            *CHROME_ARGS,
-            *(CHROME_DOCKER_ARGS if IN_DOCKER else []),
-            *(CHROME_HEADLESS_ARGS if self.config.headless else []),
-            *(CHROME_DISABLE_SECURITY_ARGS if self.config.disable_security else []),
-            *(
-                CHROME_DETERMINISTIC_RENDERING_ARGS
-                if self.config.deterministic_rendering
-                else []
-            ),
-            f"--window-position={offset_x},{offset_y}",
-            f"--window-size={screen_size['width']},{screen_size['height']}",
-            # Additional args (Patchright already handles most stealth args automatically)
-            "--disable-dev-shm-usage",  # Memory optimization
-            "--no-first-run",  # Skip first run setup
-            "--no-default-browser-check",  # Skip default browser check
-            *self.config.extra_browser_args,
-        }
+        # Patchright Best Practice: Minimal args, let Patchright handle stealth automatically
+        chrome_args = [
+            "--disable-dev-shm-usage",  # Memory optimization (safe)
+            "--no-first-run",  # Skip first run setup (safe)
+            "--no-default-browser-check",  # Skip default browser check (safe)
+        ]
+
+        # Add remote debugging port if needed (check if port is available)
+        if (
+            hasattr(self.config, "chrome_remote_debugging_port")
+            and self.config.chrome_remote_debugging_port
+        ):
+            chrome_args.append(
+                f"--remote-debugging-port={self.config.chrome_remote_debugging_port}"
+            )
+
+        # Add Docker args only if in Docker (minimal necessary)
+        if IN_DOCKER:
+            chrome_args.extend(
+                [
+                    "--no-sandbox",  # Required for Docker
+                    "--disable-setuid-sandbox",  # Required for Docker
+                ]
+            )
+
+        # Add user's extra args (use with caution - may interfere with stealth)
+        if (
+            hasattr(self.config, "extra_browser_args")
+            and self.config.extra_browser_args
+        ):
+            chrome_args.extend(self.config.extra_browser_args)
 
         # Check if chrome remote debugging port is already taken
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
