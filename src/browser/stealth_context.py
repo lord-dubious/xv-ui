@@ -86,7 +86,7 @@ class StealthBrowserContext(BrowserContext):
         except Exception as e:
             logger.warning(f"⚠️ Some Patchright stealth configurations failed: {e}")
 
-    async def _create_context(self, browser: Any) -> PatchrightBrowserContext:
+    async def _create_context(self, browser: Any) -> PatchrightBrowserContext:  # type: ignore[override]
         """Create a new Patchright browser context with Chrome-optimized stealth."""
         logger.info(
             "🎭 Creating StealthBrowserContext with Patchright Chrome optimizations..."

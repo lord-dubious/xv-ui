@@ -48,8 +48,8 @@ class StealthBrowser(Browser):
         self.proxy_manager = None  # Commented out for this branch
 
         # Initialize Patchright-specific attributes with proper types
-        self.playwright: Optional[PatchrightPlaywright] = None
-        self.browser: Optional[PatchrightBrowser] = None
+        self.playwright: Optional[PatchrightPlaywright] = None  # type: ignore[override]
+        self.browser: Optional[PatchrightBrowser] = None  # type: ignore[override]
 
         logger.info(
             "🎭 StealthBrowser initialized with Patchright stealth capabilities"
@@ -68,7 +68,7 @@ class StealthBrowser(Browser):
             config=BrowserContextConfig(**merged_config), browser=self
         )
 
-    async def _setup_builtin_browser(
+    async def _setup_builtin_browser(  # type: ignore[override]
         self, playwright: PatchrightPlaywright
     ) -> PatchrightBrowser:
         """Sets up and returns a Patchright Browser instance with enhanced stealth measures."""
