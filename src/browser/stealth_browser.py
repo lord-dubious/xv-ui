@@ -7,7 +7,7 @@ enhanced anti-detection capabilities compared to standard Playwright.
 
 import logging
 import socket
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from browser_use.browser.browser import IN_DOCKER, Browser, BrowserConfig
 from browser_use.browser.context import BrowserContextConfig
@@ -21,13 +21,10 @@ from patchright.async_api import async_playwright
 # Import proxy manager (commented out for this branch)
 # from src.proxy.proxy_manager import ProxyManager
 
-logger = logging.getLogger(__name__)
-
-# Import StealthBrowserContext (avoid circular import)
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from .stealth_context import StealthBrowserContext
+
+logger = logging.getLogger(__name__)
 
 
 class StealthBrowser(Browser):
@@ -49,6 +46,10 @@ class StealthBrowser(Browser):
         """Initialize StealthBrowser with Patchright stealth capabilities."""
         super().__init__(config)
         self.proxy_manager = None  # Commented out for this branch
+
+        # Initialize Patchright-specific attributes with proper types
+        self.playwright: Optional[PatchrightPlaywright] = None
+        self.browser: Optional[PatchrightBrowser] = None
 
         logger.info(
             "🎭 StealthBrowser initialized with Patchright stealth capabilities"
@@ -195,16 +196,18 @@ class StealthBrowser(Browser):
         """Start the Patchright browser."""
         logger.info("🎭 Starting XBrowser with Patchright...")
 
-        self.playwright = await async_playwright().start()
+        # Start Patchright playwright instance
+        patchright_playwright = await async_playwright().start()
+        self.playwright = patchright_playwright
 
         if self.config.browser_binary_path or (
             not self.config.wss_url and not self.config.cdp_url
         ):
             # Use builtin browser
-            self.browser = await self._setup_builtin_browser(self.playwright)
+            self.browser = await self._setup_builtin_browser(patchright_playwright)
         else:
             # Connect to external browser
-            self.browser = await self._setup_external_browser(self.playwright)
+            self.browser = await self._setup_external_browser(patchright_playwright)
 
         logger.info(
             "🎭 XBrowser started successfully with enhanced stealth capabilities"
