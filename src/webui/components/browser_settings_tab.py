@@ -29,7 +29,9 @@ async def close_browser(webui_manager: WebuiManager):
 
 def create_browser_settings_tab(webui_manager: WebuiManager):
     """
-    Creates a browser settings tab.
+    Creates and registers a browser settings tab in the web UI.
+    
+    The tab provides interactive Gradio components for configuring browser-related settings such as binary path, user data directory, headless mode, window size, remote debugging URLs, and file save locations. Changes to any setting are automatically saved to the environment file and certain changes trigger the browser to close and reload with updated settings.
     """
     # Load persistent settings from environment
     env_settings = load_env_settings_with_cache(webui_manager)

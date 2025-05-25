@@ -13,6 +13,11 @@ sys.path.append(".")
 
 
 async def test_browser_use_agent():
+    """
+    Runs an end-to-end test of the BrowserUseAgent with an LLM and custom browser setup.
+    
+    This function configures and launches a browser automation agent powered by a large language model (LLM) to perform a web-based task ("give me nvidia stock price"). It sets up the necessary browser environment, controller, and MCP server integration, then executes the agent for up to 100 steps. The final result and any errors encountered during execution are printed. All resources are properly cleaned up after execution, even in the event of exceptions.
+    """
     from browser_use.browser.browser import BrowserConfig
     from browser_use.browser.context import BrowserContextConfig
 
@@ -154,6 +159,11 @@ async def test_browser_use_agent():
 
 
 async def test_browser_use_parallel():
+    """
+    Runs multiple browser automation agents in parallel, each performing a distinct web-based task using an LLM-driven agent.
+    
+    This function sets up a custom browser environment and controller, configures an LLM model, and launches several `BrowserUseAgent` instances concurrently to execute different tasks such as searching for weather, current time, and sports results. Results and errors from all agents are printed after execution. Resources are cleaned up after completion or in case of errors.
+    """
     from browser_use.browser.browser import BrowserConfig
     from browser_use.browser.context import (
         BrowserContextConfig,
@@ -311,6 +321,11 @@ async def test_browser_use_parallel():
 
 
 async def test_deep_research_agent():
+    """
+    Runs a deep research agent to generate investment advice using an LLM and browser automation.
+    
+    This function initializes a DeepResearchAgent with a specified LLM, browser configuration, and MCP server setup. It executes a research workflow on a given topic, optionally resuming from a previous task ID, and prints a summary of the research process and results.
+    """
     from src.agent.deep_research.deep_research_agent import DeepResearchAgent
     from src.utils import llm_provider
 

@@ -5,14 +5,16 @@ from typing import Dict, List, Tuple
 
 def ensure_env_file_exists(env_path: str = '.env', example_env_path: str = '.env.example') -> bool:
     """
-    Ensures that the .env file exists. If it doesn't, creates it from the example file or creates an empty one.
+    Ensures a .env file exists at the specified path, creating it if necessary.
+    
+    If the .env file does not exist, attempts to create it by copying from an example file if available; otherwise, creates an empty .env file with a header comment.
     
     Args:
-        env_path: Path to the .env file
-        example_env_path: Path to the example .env file
-        
+        env_path: Path where the .env file should exist.
+        example_env_path: Path to an example .env file to copy from if present.
+    
     Returns:
-        bool: True if the file was created, False if it already existed
+        True if the .env file was created; False if it already existed.
     """
     if os.path.exists(env_path):
         return False

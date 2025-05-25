@@ -43,7 +43,11 @@ class StealthBrowser(Browser):
         config: Optional[BrowserConfig] = None,
         proxy_manager: Optional[object] = None,  # Commented out for this branch
     ):
-        """Initialize StealthBrowser with Patchright stealth capabilities."""
+        """
+        Initializes a StealthBrowser instance with Patchright stealth capabilities.
+        
+        Sets up the base browser configuration and prepares Patchright-specific attributes for later browser and Playwright initialization.
+        """
         super().__init__(config)
         self.proxy_manager = None  # Commented out for this branch
 
@@ -58,7 +62,11 @@ class StealthBrowser(Browser):
     async def new_context(
         self, config: BrowserContextConfig | None = None
     ) -> "StealthBrowserContext":
-        """Create a browser context using StealthBrowserContext."""
+        """
+        Creates and returns a new stealth browser context with merged configuration.
+        
+        If both browser-level and context-level configurations are provided, they are merged, with context-level values taking precedence. Returns a `StealthBrowserContext` instance associated with this browser.
+        """
         from .stealth_context import StealthBrowserContext
 
         browser_config = self.config.model_dump() if self.config else {}
@@ -71,7 +79,11 @@ class StealthBrowser(Browser):
     async def _setup_builtin_browser(
         self, playwright: PatchrightPlaywright
     ) -> PatchrightBrowser:
-        """Sets up and returns a Patchright Browser instance with enhanced stealth measures."""
+        """
+        Launches and configures a Patchright browser instance with enhanced stealth settings.
+        
+        Initializes a persistent browser context using Patchright, applying optimized arguments for stealth, Docker compatibility, and user customization. Ensures remote debugging ports are handled safely and applies best practices for anti-detection. Returns the launched browser instance.
+        """
         # Note: For Patchright, we can use browser_binary_path to specify Chrome location
 
         # Patchright Best Practice: no_viewport=True handles window sizing automatically
@@ -176,7 +188,14 @@ class StealthBrowser(Browser):
     async def _setup_external_browser(
         self, playwright: PatchrightPlaywright
     ) -> PatchrightBrowser:
-        """Connect to external browser using Patchright."""
+        """
+        Connects to an external Chromium browser instance using Patchright over CDP.
+        
+        Attempts to connect using the `wss_url` or `cdp_url` specified in the configuration. Raises a `ValueError` if neither URL is provided.
+        
+        Returns:
+            The connected Patchright browser instance.
+        """
         logger.info("🎭 Connecting to external browser via Patchright")
 
         if self.config.wss_url:
@@ -193,7 +212,11 @@ class StealthBrowser(Browser):
 
     @time_execution_async("--browser-startup")
     async def start(self) -> None:
-        """Start the Patchright browser."""
+        """
+        Starts the Patchright browser instance with enhanced stealth capabilities.
+        
+        Initializes the Patchright Playwright engine and either launches a built-in browser or connects to an external browser based on the configuration.
+        """
         logger.info("🎭 Starting XBrowser with Patchright...")
 
         # Start Patchright playwright instance
@@ -214,7 +237,9 @@ class StealthBrowser(Browser):
         )
 
     async def close(self) -> None:
-        """Close the Patchright browser and cleanup."""
+        """
+        Closes the Patchright browser and stops the Patchright Playwright instance, releasing all associated resources.
+        """
         logger.info("🎭 Closing XBrowser...")
 
         if hasattr(self, "browser") and self.browser:
@@ -226,7 +251,11 @@ class StealthBrowser(Browser):
         logger.info("🎭 XBrowser closed successfully")
 
     def get_stealth_info(self) -> dict:
-        """Get information about Patchright stealth capabilities."""
+        """
+        Returns a dictionary describing the Patchright engine's stealth capabilities and supported detection bypasses.
+        
+        The returned information includes the engine name, version, a list of stealth features, and detection systems that Patchright is designed to bypass.
+        """
         return {
             "engine": "Patchright",
             "version": "1.52.3",

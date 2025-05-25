@@ -21,6 +21,18 @@ class LLMConfig:
 
 
 def create_message_content(text, image_path=None):
+    """
+    Creates a message content list containing text and optionally an image.
+    
+    If an image path is provided, the image is base64-encoded and appended to the content as an image URL dictionary. The image format is determined by the file extension.
+     
+    Args:
+        text: The text content to include in the message.
+        image_path: Optional path to an image file to include.
+    
+    Returns:
+        A list of dictionaries representing the message content, including text and optionally an image.
+    """
     content = [{"type": "text", "text": text}]
     image_format = "png" if image_path and image_path.endswith(".png") else "jpeg"
     if image_path:
@@ -37,6 +49,11 @@ def create_message_content(text, image_path=None):
 
 
 def get_env_value(key, provider):
+    """
+    Retrieves the environment variable value for a given key and provider.
+    
+    Returns an empty string if the provider or key is not mapped or the environment variable is unset.
+    """
     env_mappings = {
         "openai": {"api_key": "OPENAI_API_KEY", "base_url": "OPENAI_ENDPOINT"},
         "azure_openai": {
@@ -57,6 +74,11 @@ def get_env_value(key, provider):
 
 
 def test_llm(config, query, image_path=None, system_message=None):
+    """
+    Invokes an LLM model with the specified configuration and query, optionally including an image and system message.
+    
+    Handles special cases for Ollama-based models, including DeepSeekR1, and prints the AI's response content. For other providers, constructs appropriate message objects and invokes the model, printing any reasoning content if available.
+    """
     from src.utils import llm_provider
 
     # Special handling for Ollama-based models
@@ -97,6 +119,9 @@ def test_llm(config, query, image_path=None, system_message=None):
 
 
 def test_openai_model():
+    """
+    Tests the OpenAI GPT-4o model by requesting a description of a sample image.
+    """
     config = LLMConfig(provider="openai", model_name="gpt-4o")
     test_llm(config, "Describe this image", "assets/examples/test.png")
 
@@ -118,6 +143,11 @@ def test_deepseek_model():
 
 
 def test_deepseek_r1_model():
+    """
+    Tests the DeepSeek Reasoner model by querying a numeric comparison with a system message.
+    
+    Invokes the DeepSeek Reasoner LLM to determine which of two numbers is greater, providing a system prompt to guide the AI's behavior.
+    """
     config = LLMConfig(provider="deepseek", model_name="deepseek-reasoner")
     test_llm(
         config,
@@ -127,6 +157,9 @@ def test_deepseek_r1_model():
 
 
 def test_ollama_model():
+    """
+    Tests the Ollama Qwen2.5:7b model by requesting it to generate a ballad about LangChain.
+    """
     config = LLMConfig(provider="ollama", model_name="qwen2.5:7b")
     test_llm(config, "Sing a ballad of LangChain.")
 
@@ -147,6 +180,11 @@ def test_moonshot_model():
 
 
 def test_ibm_model():
+    """
+    Tests the IBM Meta-Llama 17B instruct model with an image description prompt.
+    
+    Sends a sample image and prompt to the IBM LLM provider and prints the AI's response.
+    """
     config = LLMConfig(
         provider="ibm", model_name="meta-llama/llama-4-maverick-17b-128e-instruct-fp8"
     )

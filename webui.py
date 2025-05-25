@@ -22,7 +22,11 @@ demo_instance = None
 
 
 def signal_handler(signum, frame):
-    """Handle shutdown signals gracefully"""
+    """
+    Handles OS shutdown signals to gracefully terminate the Gradio WebUI.
+    
+    Closes the Gradio interface if it is running, logs the shutdown process, and exits the program with status 0.
+    """
     signal_name = signal.Signals(signum).name
     logger.info(f"\n🛑 Received {signal_name} signal. Shutting down gracefully...")
 
@@ -39,7 +43,11 @@ def signal_handler(signum, frame):
 
 
 def cleanup_on_exit():
-    """Cleanup function called on normal exit"""
+    """
+    Performs cleanup actions when the program exits normally.
+    
+    Closes the Gradio interface instance if it exists, logging any errors encountered during cleanup.
+    """
     logger.info("🧹 Performing cleanup on exit...")
     if demo_instance:
         try:
@@ -49,6 +57,11 @@ def cleanup_on_exit():
 
 
 def main():
+    """
+    Starts the Gradio WebUI for the Browser Agent application with graceful shutdown and cleanup.
+    
+    Parses command-line arguments for IP address, port, and UI theme, sets up signal handlers and exit cleanup, and launches the Gradio interface. Handles keyboard interrupts and startup errors to ensure proper shutdown.
+    """
     global demo_instance
 
     # Register signal handlers for graceful shutdown

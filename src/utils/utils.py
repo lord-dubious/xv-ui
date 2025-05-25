@@ -6,6 +6,15 @@ from typing import Dict, Optional
 
 
 def encode_image(img_path):
+    """
+    Encodes an image file to a base64 string.
+    
+    Args:
+    	img_path: Path to the image file.
+    
+    Returns:
+    	A base64-encoded string of the image contents, or None if no path is provided.
+    """
     if not img_path:
         return None
     with open(img_path, "rb") as fin:

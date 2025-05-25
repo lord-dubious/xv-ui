@@ -53,6 +53,11 @@ async def test_mcp_client():
 
 
 async def test_controller_with_mcp():
+    """
+    Tests the integration of a custom controller with an MCP server for command execution and output retrieval.
+    
+    This asynchronous test sets up a custom controller with a specified MCP server configuration, executes a command via the MCP protocol, and retrieves its output. If the command is still running, it repeatedly polls for output using the process ID until the output is available. The function prints parameter model schemas and results at key steps and uses interactive debugging breakpoints for inspection.
+    """
     from src.controller.custom_controller import CustomController
 
     mcp_server_config = {
