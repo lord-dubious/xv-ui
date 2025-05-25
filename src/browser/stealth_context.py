@@ -51,45 +51,28 @@ class StealthBrowserContext(BrowserContext):
         logger.info("🎭 Applying Patchright Chrome stealth configurations...")
 
         try:
-            # Patchright-optimized stealth script (minimal since Patchright handles most)
-            # Note: Console is disabled in Patchright, so we avoid console.log
+            # Minimal stealth script (Patchright handles most automatically)
+            # Note: Console is disabled in Patchright for stealth
             await context.add_init_script("""
-                // Minimal stealth enhancements (Patchright handles the heavy lifting)
+                // Minimal enhancements - Patchright already patches the major leaks
 
-                // Enhanced navigator properties (Chrome-specific)
-                Object.defineProperty(navigator, 'hardwareConcurrency', {
-                    get: () => 8,
-                });
-
-                Object.defineProperty(navigator, 'deviceMemory', {
-                    get: () => 8,
-                });
-
-                // Enhanced screen properties for Chrome
-                Object.defineProperty(screen, 'colorDepth', {
-                    get: () => 24,
-                });
-
-                // Chrome-specific WebGL fingerprint resistance
-                const getParameter = WebGLRenderingContext.prototype.getParameter;
-                WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                    if (parameter === 37445) {
-                        return 'Intel Inc.';
-                    }
-                    if (parameter === 37446) {
-                        return 'Intel(R) Iris(TM) Graphics 6100';
-                    }
-                    return getParameter.call(this, parameter);
-                };
-
-                // Enhanced Chrome runtime spoofing
-                if (!window.chrome) {
-                    window.chrome = {};
+                // Basic navigator enhancements (optional since Patchright handles webdriver)
+                if (!navigator.hardwareConcurrency || navigator.hardwareConcurrency < 4) {
+                    Object.defineProperty(navigator, 'hardwareConcurrency', {
+                        get: () => 8,
+                        configurable: true
+                    });
                 }
-                window.chrome.runtime = {
-                    onConnect: null,
-                    onMessage: null,
-                };
+
+                // Basic chrome object (Patchright may handle this)
+                if (!window.chrome) {
+                    window.chrome = {
+                        runtime: {
+                            onConnect: null,
+                            onMessage: null
+                        }
+                    };
+                }
             """)
 
             # Chrome-optimized headers for maximum stealth

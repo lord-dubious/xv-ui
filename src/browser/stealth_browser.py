@@ -29,8 +29,8 @@ from patchright.async_api import Browser as PatchrightBrowser
 from patchright.async_api import Playwright as PatchrightPlaywright
 from patchright.async_api import async_playwright
 
-# Import proxy manager
-from src.proxy.proxy_manager import ProxyManager
+# Import proxy manager (commented out for this branch)
+# from src.proxy.proxy_manager import ProxyManager
 
 logger = logging.getLogger(__name__)
 
@@ -55,20 +55,15 @@ class StealthBrowser(Browser):
     def __init__(
         self,
         config: Optional[BrowserConfig] = None,
-        proxy_manager: Optional[ProxyManager] = None,
+        proxy_manager: Optional[object] = None,  # Commented out for this branch
     ):
-        """Initialize StealthBrowser with Patchright and optional proxy support."""
+        """Initialize StealthBrowser with Patchright stealth capabilities."""
         super().__init__(config)
-        self.proxy_manager = proxy_manager
+        self.proxy_manager = None  # Commented out for this branch
 
-        if proxy_manager:
-            logger.info(
-                "🎭 StealthBrowser initialized with Patchright stealth capabilities and proxy support"
-            )
-        else:
-            logger.info(
-                "🎭 StealthBrowser initialized with Patchright stealth capabilities"
-            )
+        logger.info(
+            "🎭 StealthBrowser initialized with Patchright stealth capabilities"
+        )
 
     async def new_context(
         self, config: BrowserContextConfig | None = None
@@ -122,16 +117,10 @@ class StealthBrowser(Browser):
             ),
             f"--window-position={offset_x},{offset_y}",
             f"--window-size={screen_size['width']},{screen_size['height']}",
-            # Additional Patchright-specific stealth args
-            "--disable-blink-features=AutomationControlled",  # Already included in Patchright
-            "--disable-dev-shm-usage",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-features=TranslateUI",
-            "--disable-ipc-flooding-protection",
+            # Additional args (Patchright already handles most stealth args automatically)
+            "--disable-dev-shm-usage",  # Memory optimization
+            "--no-first-run",  # Skip first run setup
+            "--no-default-browser-check",  # Skip default browser check
             *self.config.extra_browser_args,
         }
 
@@ -175,17 +164,15 @@ class StealthBrowser(Browser):
             "handle_sigint": False,
         }
 
-        # Add proxy configuration (prioritize proxy_manager over config.proxy)
-        if self.proxy_manager:
-            proxy_config = self.proxy_manager.get_proxy_for_browser()
-            if proxy_config:
-                launch_options["proxy"] = proxy_config
-                logger.info(
-                    f"🌐 Using proxy from ProxyManager: {proxy_config['server']}"
-                )
-        elif self.config.proxy:
-            launch_options["proxy"] = self.config.proxy.model_dump()
-            logger.info("🌐 Using proxy from browser config")
+        # Add proxy configuration (commented out for this branch)
+        # if self.proxy_manager:
+        #     proxy_config = self.proxy_manager.get_proxy_for_browser()
+        #     if proxy_config:
+        #         launch_options["proxy"] = proxy_config
+        #         logger.info(f"🌐 Using proxy from ProxyManager: {proxy_config['server']}")
+        # elif self.config.proxy:
+        #     launch_options["proxy"] = self.config.proxy.model_dump()
+        #     logger.info("🌐 Using proxy from browser config")
 
         # Add executable path if specified
         if self.config.browser_binary_path:
