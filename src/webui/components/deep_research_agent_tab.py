@@ -367,7 +367,9 @@ async def update_mcp_server(mcp_file: str, webui_manager: WebuiManager):
 
 def create_deep_research_agent_tab(webui_manager: WebuiManager):
     """
-    Creates a deep research agent tab
+    Creates and configures the Deep Research Agent tab in the Gradio UI.
+    
+    Initializes all UI components for the Deep Research Agent workflow, including research task input, MCP server configuration, control buttons, and report display. Connects event handlers for starting and stopping the agent, as well as updating the MCP server configuration when the relevant file changes. Registers the tab's components with the provided web UI manager and initializes the agent backend.
     """
     set(webui_manager.get_components())
     tab_components = {}

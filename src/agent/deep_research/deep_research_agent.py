@@ -56,9 +56,18 @@ async def run_single_browser_task(
         use_vision: bool = False,
 ) -> Dict[str, Any]:
     """
-    Runs a single BrowserUseAgent task.
-    Manages browser creation and closing for this specific task.
-    """
+        Executes a single research task using a browser automation agent.
+        
+        Launches a browser instance, constructs a research prompt, and runs a `BrowserUseAgent` to gather relevant information for the specified query. Handles browser setup and teardown, manages stop signals, and returns the result or error status.
+        
+        Args:
+            task_query: The research query to be answered.
+            task_id: Unique identifier for the research task.
+            use_vision: Whether to enable vision-based features in the agent.
+        
+        Returns:
+            A dictionary containing the query, result or error, and status ("completed", "cancelled", "stopped", or "failed").
+        """
     if not BrowserUseAgent:
         return {
             "query": task_query,
@@ -208,9 +217,10 @@ async def _run_browser_search_tool(
         max_parallel_browsers: int = 1,
 ) -> List[Dict[str, Any]]:
     """
-    Internal function to execute parallel browser searches based on LLM-provided queries.
-    Handles concurrency and stop signals.
-    """
+        Executes multiple browser-based search tasks in parallel for the provided queries.
+        
+        Limits concurrency according to `max_parallel_browsers` and responds to stop signals to cancel pending tasks. Returns a list of result dictionaries for each query, including status and error information if applicable.
+        """
 
     # Limit queries just in case LLM ignores the description
     queries = queries[:max_parallel_browsers]
@@ -221,6 +231,11 @@ async def _run_browser_search_tool(
     semaphore = asyncio.Semaphore(max_parallel_browsers)
 
     async def task_wrapper(query):
+        """
+        Executes a single browser-based research task for the given query, respecting concurrency limits and stop signals.
+        
+        If a stop event is set before execution, the task is cancelled and a cancellation status is returned. Otherwise, the task is run using the configured browser agent and LLM, and the result is returned.
+        """
         async with semaphore:
             if stop_event.is_set():
                 logger.info(
@@ -418,6 +433,11 @@ def _load_previous_state(task_id: str, output_dir: str) -> Dict[str, Any]:
 
 
 def _save_plan_to_md(plan: List[ResearchCategoryItem], output_dir: str):
+    """
+    Saves the hierarchical research plan to a Markdown file in the specified output directory.
+    
+    The plan is formatted with categories and tasks, including status markers for completed, pending, or failed tasks.
+    """
     plan_file = os.path.join(output_dir, PLAN_FILENAME)
     try:
         with open(plan_file, "w", encoding="utf-8") as f:
@@ -606,6 +626,17 @@ Ensure the output is a valid JSON array.
 
 
 async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
+    """
+    Executes the current research task in the plan, invoking LLM and tools as needed.
+    
+    Checks for stop requests and task completion, then prompts the LLM to determine and execute appropriate tools (such as browser search) for the current research task. Updates task status and result summaries based on tool execution outcomes, saves progress, and advances to the next task or category. Handles errors by marking tasks as failed and updating indices to continue execution.
+    
+    Args:
+        state: The current agent state, including research plan, indices, LLM, tools, and progress.
+    
+    Returns:
+        A dictionary with updated research plan, search results, indices, messages, and error information if applicable.
+    """
     logger.info("--- Entering Research Execution Node ---")
     if state.get("stop_requested"):
         logger.info("Stop requested, skipping research execution.")
@@ -807,7 +838,17 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
 
 
 async def synthesis_node(state: DeepResearchState) -> Dict[str, Any]:
-    """Synthesizes the final report from the collected search results."""
+    """
+    Generates a comprehensive Markdown research report by synthesizing collected search results and the executed research plan.
+    
+    If no search results are available, creates a minimal report indicating no information was gathered. Otherwise, formats findings and plan context, prompts the language model to produce a structured report, and saves the result to disk.
+    
+    Args:
+        state: The current research state, including topic, plan, search results, and output directory.
+    
+    Returns:
+        A dictionary containing the final report under "final_report", or an error message if synthesis fails.
+    """
     logger.info("--- Entering Synthesis Node ---")
     if state.get("stop_requested"):
         logger.info("Stop requested, skipping synthesis.")

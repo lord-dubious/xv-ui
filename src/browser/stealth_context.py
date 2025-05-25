@@ -40,14 +40,22 @@ class StealthBrowserContext(BrowserContext):
         config: BrowserContextConfig | None = None,
         state: Optional[BrowserContextState] = None,
     ):
-        """Initialize StealthBrowserContext with Patchright Chrome optimizations."""
+        """
+        Initializes a StealthBrowserContext with Patchright Chrome-specific stealth features.
+        
+        Creates a browser context optimized for anti-detection on Chrome/Chromium browsers using Patchright, with optional configuration and state.
+        """
         super().__init__(browser=browser, config=config, state=state)
         logger.info(
             "🎭 StealthBrowserContext initialized with Patchright Chrome-only stealth features"
         )
 
     async def _setup_context_stealth(self, context: PatchrightBrowserContext) -> None:
-        """Setup additional stealth measures optimized for Patchright Chrome."""
+        """
+        Applies additional stealth configurations to a Patchright Chrome browser context.
+        
+        Injects a minimal initialization script to patch navigator properties and define a basic `window.chrome` object, enhancing anti-detection measures. Relies on Patchright's built-in stealth features and avoids custom HTTP header or user agent modifications.
+        """
         logger.info("🎭 Applying Patchright Chrome stealth configurations...")
 
         try:
@@ -87,7 +95,14 @@ class StealthBrowserContext(BrowserContext):
             logger.warning(f"⚠️ Some Patchright stealth configurations failed: {e}")
 
     async def _create_context(self, browser: Any) -> PatchrightBrowserContext:  # type: ignore[override]
-        """Create a new Patchright browser context with Chrome-optimized stealth."""
+        """
+        Asynchronously applies Patchright Chrome-specific stealth measures to an existing persistent browser context and returns it.
+        
+        The provided `browser` parameter is assumed to be a persistent context (as per Patchright's requirements), so no new context is created. Stealth features are applied to enhance anti-detection capabilities for Chrome/Chromium browsers.
+        
+        Returns:
+            The Patchright browser context with stealth optimizations applied.
+        """
         logger.info(
             "🎭 Creating StealthBrowserContext with Patchright Chrome optimizations..."
         )
@@ -108,7 +123,11 @@ class StealthBrowserContext(BrowserContext):
         return context
 
     def get_context_info(self) -> dict:
-        """Get information about the StealthBrowserContext with Patchright details."""
+        """
+        Returns a dictionary describing the characteristics and configuration of the Patchright-based StealthBrowserContext.
+        
+        The returned information includes context type, engine, supported browsers, stealth features, detection bypass targets, configuration parameters, and known limitations.
+        """
         return {
             "type": "StealthBrowserContext",
             "engine": "Patchright", 

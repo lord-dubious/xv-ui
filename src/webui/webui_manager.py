@@ -39,7 +39,9 @@ class WebuiManager:
 
     def init_deep_research_agent(self) -> None:
         """
-        init deep research agent
+        Initializes attributes related to the deep research agent to their default values.
+        
+        Resets the deep research agent instance, current task, task ID, and save directory to None.
         """
         self.dr_agent: Optional[DeepResearchAgent] = None
         self.dr_current_task = None
@@ -50,7 +52,9 @@ class WebuiManager:
         self, tab_name: str, components_dict: dict[str, "Component"]
     ) -> None:
         """
-        Add tab components
+        Registers UI components under a tab and assigns unique IDs.
+        
+        Each component is mapped to a unique ID composed of the tab name and component name, updating internal mappings for component lookup by ID or by instance.
         """
         for comp_name, component in components_dict.items():
             comp_id = f"{tab_name}.{comp_name}"
@@ -77,7 +81,9 @@ class WebuiManager:
 
     def save_config(self, components: Dict["Component", str]) -> None:
         """
-        Save config
+        Saves the current UI component configuration to a timestamped JSON file.
+        
+        Only interactive, non-button, and non-file components are included in the saved configuration. Returns the path to the saved configuration file.
         """
         cur_settings = {}
         for comp in components:
@@ -99,7 +105,9 @@ class WebuiManager:
 
     def load_config(self, config_path: str):
         """
-        Load config
+        Loads a UI configuration from a JSON file and updates registered components with saved values.
+        
+        For each component ID and value in the configuration, creates a new instance of the component class with the loaded value. Special handling is applied for "Chatbot" components to set the type as "messages". Updates a status component to indicate successful loading. Yields a dictionary mapping components to their updated instances.
         """
         with open(config_path, "r") as fr:
             ui_settings = json.load(fr)
@@ -127,13 +135,13 @@ class WebuiManager:
 
     def load_env_settings(self, env_path: str = ".env") -> Dict[str, str]:
         """
-        Load environment settings from .env file
-
+        Loads environment variables from a .env file.
+        
         Args:
-            env_path: Path to the .env file
-
+            env_path: Path to the .env file.
+        
         Returns:
-            Dict[str, str]: Dictionary of environment variables
+            A dictionary containing environment variable names and their values.
         """
         return read_env_file(env_path)
 
@@ -141,14 +149,14 @@ class WebuiManager:
         self, env_vars: Dict[str, str], env_path: str = ".env"
     ) -> bool:
         """
-        Save environment settings to .env file
-
+        Saves environment variables to a .env file.
+        
         Args:
-            env_vars: Dictionary of environment variables
-            env_path: Path to the .env file
-
+            env_vars: Dictionary of environment variables to save.
+            env_path: Path to the .env file.
+        
         Returns:
-            bool: True if successful, False otherwise
+            True if the environment variables were successfully saved, False otherwise.
         """
         return write_env_file(env_vars, env_path)
 
@@ -156,15 +164,15 @@ class WebuiManager:
         self, provider: str, api_key: str = None, base_url: str = None
     ) -> bool:
         """
-        Save API keys to .env file
-
+        Updates the .env file with the API key and base URL for a specified provider.
+        
         Args:
-            provider: Provider name (e.g., 'openai', 'anthropic')
-            api_key: API key value (optional)
-            base_url: Base URL for the API (optional)
-
+            provider: The name of the API provider (e.g., "openai", "anthropic").
+            api_key: The API key to set for the provider, if provided.
+            base_url: The base URL to set for the provider, if provided.
+        
         Returns:
-            bool: True if successful, False otherwise
+            True if the environment file was updated successfully, False otherwise.
         """
         # Load current env vars
         env_vars = self.load_env_settings()
@@ -186,15 +194,17 @@ class WebuiManager:
         setting_value=None,
     ) -> bool:
         """
-        Save browser settings to .env file
-
+        Updates browser-related settings in the environment file (.env) based on provided values.
+        
+        You can update a single setting by specifying its name and value, or update multiple settings using a dictionary. Automatically updates the combined resolution string if window dimensions are changed.
+        
         Args:
-            settings: Dictionary of browser settings (optional)
-            setting_name: Name of a single setting to update (optional)
-            setting_value: Value for the single setting (optional)
-
+            settings: Optional dictionary of browser settings to update.
+            setting_name: Optional name of a single setting to update.
+            setting_value: Value for the single setting, if specified.
+        
         Returns:
-            bool: True if successful, False otherwise
+            True if the environment file was updated successfully, False otherwise.
         """
         # Load current env vars
         env_vars = self.load_env_settings()

@@ -21,6 +21,17 @@ theme_map = {
 
 
 def create_ui(theme_name="Ocean"):
+    """
+    Builds and returns the main Gradio-based web UI for browser control with AI assistance.
+    
+    The interface includes custom styling, dark mode enforcement, and a tabbed layout for agent settings, browser settings, agent execution, agent marketplace (with XAgent and Deep Research tabs), and configuration management.
+    
+    Args:
+        theme_name: The name of the Gradio theme to apply to the UI. Defaults to "Ocean".
+    
+    Returns:
+        A Gradio Blocks object representing the complete web UI.
+    """
     css = """
     .gradio-container {
         width: 70vw !important;

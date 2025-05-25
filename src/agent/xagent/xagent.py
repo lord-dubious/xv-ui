@@ -51,15 +51,15 @@ class XAgent:
         mode: str = "stealth",  # "stealth", "proxy", or "hybrid"
     ):
         """
-        Initialize XAgent with stealth and proxy capabilities.
-
+        Initializes an XAgent instance with Patchright stealth browser features and optional proxy rotation.
+        
         Args:
-            llm: Language model instance
-            browser_config: Browser configuration dictionary
-            proxy_list: List of SOCKS5 proxy URLs (socks5://user:pass@host:port)
-            proxy_rotation_mode: "round_robin" or "random"
-            mcp_server_config: MCP server configuration
-            mode: "stealth" (Patchright only), "proxy" (browser+proxy), "hybrid" (both)
+            llm: The language model to use for agent reasoning and task execution.
+            browser_config: Dictionary specifying browser settings such as headless mode and window size.
+            proxy_list: Optional list of SOCKS5 proxy URLs for proxy rotation (currently unused).
+            proxy_rotation_mode: Proxy selection strategy, either "round_robin" or "random".
+            mcp_server_config: Optional configuration for MCP server integration.
+            mode: Operation mode, one of "stealth", "proxy", or "hybrid".
         """
         self.llm = llm
         self.browser_config = browser_config
@@ -93,17 +93,19 @@ class XAgent:
         test_proxies: bool = True,
     ) -> Dict[str, Any]:
         """
-        Run a task with XAgent stealth capabilities.
-
+        Executes a browser automation task using XAgent's stealth capabilities.
+        
+        Runs the specified task with anti-detection browser features, manages task lifecycle, and saves results to disk. Returns task status, results, proxy information (if applicable), and metadata. If a task is already running, returns an error status.
+        
         Args:
-            task: The task to perform
-            task_id: Optional task ID for resuming
-            save_dir: Directory to save results
-            max_steps: Maximum steps for browser agent
-            test_proxies: Whether to test proxies before starting
-
+            task: Description or instructions for the automation task.
+            task_id: Optional identifier to resume or track the task.
+            save_dir: Directory path where results will be stored.
+            max_steps: Maximum number of steps the browser agent may execute.
+            test_proxies: Ignored in this version (proxy testing is disabled).
+        
         Returns:
-            Dict with task results
+            A dictionary containing the task status, task ID, result, proxy information (if any), and timestamp.
         """
         if self.runner and not self.runner.done():
             logger.warning(
@@ -196,7 +198,15 @@ class XAgent:
                 logger.error(f"Error closing browser: {e}")
 
     def _create_xagent_prompt(self, task: str) -> str:
-        """Create a specialized prompt for XAgent tasks."""
+        """
+        Generates a detailed system prompt describing XAgent's stealth, proxy, and detection bypass capabilities for a given automation task.
+        
+        Args:
+            task: The description of the automation task to be performed.
+        
+        Returns:
+            A multi-line string prompt tailored for XAgent, outlining its advanced features and operational guidelines.
+        """
         proxy_info = ""
         # if self.proxy_manager:
         #     current_proxy = self.proxy_manager.get_current_proxy()
@@ -239,7 +249,14 @@ class XAgent:
         """
 
     async def _create_stealth_browser(self) -> StealthBrowser:
-        """Create StealthBrowser with proxy support."""
+        """
+        Asynchronously creates and returns a StealthBrowser instance configured for stealth automation.
+        
+        The browser is set up with enhanced Chromium arguments to minimize automation detection. Proxy support is included if a proxy manager is configured.
+        	
+        Returns:
+        	A StealthBrowser instance with stealth and optional proxy capabilities.
+        """
         # Enhanced browser config for stealth
         config = BrowserConfig(
             headless=self.browser_config.get("headless", False),
@@ -264,7 +281,15 @@ class XAgent:
         return browser
 
     async def _create_stealth_context(self, browser: StealthBrowser):
-        """Create stealth browser context."""
+        """
+        Creates a new stealth browser context with specified window dimensions and download path.
+        
+        Args:
+            browser: The StealthBrowser instance to create the context from.
+        
+        Returns:
+            An asynchronously created browser context configured for stealth automation.
+        """
         context_config = BrowserContextConfig(
             save_downloads_path="./tmp/xagent/downloads",
             window_height=self.browser_config.get("window_height", 1100),
@@ -274,7 +299,11 @@ class XAgent:
         return await browser.new_context(context_config)
 
     async def _save_results(self, result: str, save_dir: str):
-        """Save XAgent task results."""
+        """
+        Saves the results of the current XAgent task to a JSON file in the specified directory.
+        
+        The saved file includes task metadata, result content, proxy information, and a list of stealth features used.
+        """
         import json
         import os
 
@@ -303,7 +332,12 @@ class XAgent:
         logger.info(f"📁 Results saved to: {result_file}")
 
     def _get_current_proxy_info(self) -> Optional[Dict[str, Any]]:
-        """Get current proxy information."""
+        """
+        Retrieves details about the currently active proxy.
+        
+        Returns:
+            A dictionary containing the current proxy's host, port, protocol, working status, and response time, or None if no proxy is configured or active.
+        """
         if not self.proxy_manager:
             return None
 
@@ -320,7 +354,11 @@ class XAgent:
         }
 
     async def stop(self):
-        """Stop the currently running XAgent task."""
+        """
+        Stops the currently running XAgent task, if any.
+        
+        If a task is active, signals it to stop and marks the agent as stopped. If no task is running, logs that no action is taken.
+        """
         if not self.current_task_id or not self.stop_event:
             logger.info("No XAgent task is currently running.")
             return
@@ -330,7 +368,9 @@ class XAgent:
         self.stopped = True
 
     def get_status(self) -> Dict[str, Any]:
-        """Get current XAgent status."""
+        """
+        Returns the current status of the XAgent, including task ID, running state, stop flag, stealth engine, and proxy enablement.
+        """
         status = {
             "current_task_id": self.current_task_id,
             "is_running": self.runner and not self.runner.done()

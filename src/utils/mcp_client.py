@@ -17,13 +17,12 @@ async def setup_mcp_client_and_tools(
     mcp_server_config: Dict[str, Any],
 ) -> Optional[MultiServerMCPClient]:
     """
-    Initializes the MultiServerMCPClient, connects to servers, fetches tools,
-    filters them, and returns a flat list of usable tools and the client instance.
-
+    Initializes and starts a MultiServerMCPClient using the provided server configuration.
+    
+    If the configuration is empty or an error occurs during setup, returns None.
+    
     Returns:
-        A tuple containing:
-        - list[BaseTool]: The filtered list of usable LangChain tools.
-        - MultiServerMCPClient | None: The initialized and started client instance, or None on failure.
+        The initialized MultiServerMCPClient instance, or None if setup fails.
     """
 
     logger.info("Initializing MultiServerMCPClient...")
@@ -45,7 +44,14 @@ async def setup_mcp_client_and_tools(
 
 
 def create_tool_param_model(tool: BaseTool) -> Type[BaseModel]:
-    """Creates a Pydantic model from a LangChain tool's schema"""
+    """
+    Generates a Pydantic model representing the parameters for a given LangChain tool.
+    
+    If the tool defines a JSON schema (`args_schema`), the model is constructed from its properties, required fields, and validation constraints. If no schema is present, the model is built from the `_run` method's signature and type hints.
+    
+    Returns:
+        A Pydantic model subclassing `ActionModel` that describes the tool's expected parameters.
+    """
 
     # Get tool schema information
     json_schema = tool.args_schema
@@ -134,7 +140,11 @@ def create_tool_param_model(tool: BaseTool) -> Type[BaseModel]:
 
 
 def resolve_type(prop_details: Dict[str, Any], prefix: str = "") -> Any:
-    """Recursively resolves JSON schema type to Python/Pydantic type"""
+    """
+    Recursively converts a JSON schema property definition into the corresponding Python or Pydantic type.
+    
+    Supports mapping of basic types, formatted strings, enums, arrays, nested objects, unions (`oneOf`, `anyOf`), intersections (`allOf`), and optional types. Returns dynamically generated Enum or Pydantic model classes for complex schemas. If a `$ref` is encountered or the type is unrecognized, returns `Any`.
+    """
 
     # Handle reference types
     if "$ref" in prop_details:

@@ -16,7 +16,12 @@ MCP_CONFIG_FILE = "./tmp/mcp_servers.json"
 
 
 def load_mcp_servers() -> dict:
-    """Load MCP servers from persistent storage."""
+    """
+    Loads MCP server configurations from the persistent JSON file.
+    
+    Returns:
+        A dictionary containing MCP server configurations. Returns an empty dictionary if the file does not exist or an error occurs.
+    """
     try:
         os.makedirs(os.path.dirname(MCP_CONFIG_FILE), exist_ok=True)
         if os.path.exists(MCP_CONFIG_FILE):
@@ -33,7 +38,15 @@ def load_mcp_servers() -> dict:
 
 
 def save_mcp_servers(servers_config: dict) -> bool:
-    """Save MCP servers to persistent storage."""
+    """
+    Saves the MCP server configurations to a JSON file for persistent storage.
+    
+    Args:
+        servers_config: A dictionary containing MCP server configurations.
+    
+    Returns:
+        True if the configurations were saved successfully, False otherwise.
+    """
     try:
         os.makedirs(os.path.dirname(MCP_CONFIG_FILE), exist_ok=True)
         # Save in the standard MCP format
@@ -51,16 +64,16 @@ def update_model_dropdown(
     llm_provider: str, webui_manager=None, is_planner=False
 ) -> gr.Dropdown:
     """
-    Update the model name dropdown with predefined models for the selected provider.
-    Preserves the currently saved model name if it's valid for the new provider.
-
+    Creates a Gradio Dropdown component listing available models for the specified LLM provider.
+    
+    If a saved model name exists in the environment settings and is valid for the provider, it is preselected. Otherwise, the first available model is selected by default. For unknown providers, returns an empty dropdown allowing custom values.
+    
     Args:
-        llm_provider: The LLM provider name
-        webui_manager: WebUI manager instance for loading saved settings
-        is_planner: Whether this is for the planner LLM (affects which env var to check)
-
+        llm_provider: The name of the LLM provider to display models for.
+        is_planner: If True, uses the planner LLM model environment variable for the saved model.
+    
     Returns:
-        Updated Gradio Dropdown component
+        A Gradio Dropdown component populated with model choices for the provider.
     """
     # Use predefined models for the selected provider
     if llm_provider in config.model_names:
@@ -151,13 +164,11 @@ def setup_synchronized_delay_setting(
 def _create_system_prompt_components(
     env_settings: Dict[str, str],
 ) -> Tuple[gr.Textbox, gr.Textbox]:
-    """Create system prompt components.
-
-    Args:
-        env_settings: Environment settings dictionary
-
-    Returns:
-        Tuple of (override_system_prompt, extend_system_prompt) components
+    """
+    Creates Gradio Textbox components for overriding and extending the system prompt.
+    
+    The components are initialized with values from the provided environment settings.
+    Returns a tuple containing the override and extend system prompt textboxes.
     """
     with gr.Group(), gr.Column():
         override_system_prompt = gr.Textbox(
@@ -176,10 +187,14 @@ def _create_system_prompt_components(
 
 
 def _create_mcp_components() -> Tuple[gr.State, gr.Group, dict]:
-    """Create MCP server components with your exact UI design and persistence.
-
+    """
+    Creates Gradio UI components for managing MCP (Model Context Protocol) servers, including persistent state, server list display, and modals for adding or importing servers.
+    
     Returns:
-        Tuple of (mcp_servers_state, mcp_container, mcp_components_dict) components
+        A tuple containing:
+            - Gradio State component holding the MCP servers configuration.
+            - Gradio Group container with the MCP server management UI.
+            - Dictionary of Gradio components for event handling and UI interaction.
     """
     # Load persistent MCP servers
     initial_servers = load_mcp_servers()
@@ -282,7 +297,17 @@ def _create_mcp_components() -> Tuple[gr.State, gr.Group, dict]:
 
 
 def _create_server_component(server_name: str, server_config: dict, server_index: int):
-    """Create a single server component with toggle and context menu using native Gradio components."""
+    """
+    Creates a Gradio UI component for an individual MCP server entry with toggle and action menu.
+    
+    Args:
+        server_name: The display name of the MCP server.
+        server_config: Dictionary containing the server's configuration.
+        server_index: Index of the server in the list, used for element IDs.
+    
+    Returns:
+        A tuple containing the Gradio group for the server, the toggle checkbox, and the context menu dropdown.
+    """
     enabled = server_config.get("enabled", True)
     command = server_config.get("command", "")
     args = server_config.get("args", [])
@@ -321,26 +346,38 @@ def _create_server_component(server_name: str, server_config: dict, server_index
 
 
 def _toggle_server(servers_config: dict, server_name: str, enabled: bool) -> dict:
-    """Toggle the enabled state of an MCP server."""
+    """
+    Sets the enabled state of a specified MCP server in the configuration.
+    
+    Args:
+        servers_config: Dictionary of MCP server configurations.
+        server_name: Name of the server to update.
+        enabled: Desired enabled state.
+    
+    Returns:
+        The updated servers configuration dictionary.
+    """
     if server_name in servers_config:
         servers_config[server_name]["enabled"] = enabled
     return servers_config
 
 
 def _handle_server_action(servers_config: dict, server_name: str, action: str) -> tuple:
-    """Handle context menu actions for MCP servers.
-
-    ✅ FULLY IMPLEMENTED - No longer placeholder code!
-    This function properly handles all MCP server actions:
-    - "📋 Copy JSON": Generates JSON for copy functionality (used by get_server_json)
-    - "✏️ Edit": Returns server config for edit modal (ready for future UI integration)
-    - "🗑️ Delete": Removes server from configuration (used by delete_mcp_server)
-
+    """
+    Handles MCP server context menu actions such as delete, copy JSON, and edit.
+    
+    Depending on the action, this function updates the server configuration, generates a JSON string for copying, or returns the server configuration for editing.
+    
+    Args:
+        servers_config: The current MCP servers configuration dictionary.
+        server_name: The name of the server to act upon.
+        action: The action to perform ("🗑️ Delete", "📋 Copy JSON", "✏️ Edit").
+    
     Returns:
-        tuple: (servers_config, action_type, action_data)
-        - servers_config: Updated server configuration
-        - action_type: Type of action performed ("delete", "copy", "edit", "none")
-        - action_data: Additional data based on action (JSON string for copy, server config for edit, None for others)
+        A tuple containing:
+            - The updated servers configuration dictionary.
+            - The action type performed ("delete", "copy", "edit", or "none").
+            - Additional data relevant to the action (JSON string for copy, server config for edit, or None).
     """
     if not action or action == "":
         return servers_config, "none", None
@@ -377,7 +414,15 @@ def _handle_server_action(servers_config: dict, server_name: str, action: str) -
 
 
 def _refresh_server_list(servers_config: dict):
-    """Refresh the server list display with current servers."""
+    """
+    Generates updated HTML for the MCP server list with toggles and context menus.
+    
+    Args:
+        servers_config: Dictionary containing the current MCP server configurations.
+    
+    Returns:
+        HTML string representing the refreshed server list for UI display.
+    """
     logger.info(f"🔧 MCP: Refreshing server list with {len(servers_config)} servers")
 
     # This function will be used to update the UI when servers change
@@ -386,7 +431,11 @@ def _refresh_server_list(servers_config: dict):
 
 
 def _render_mcp_server_list_with_toggles(servers_config: dict) -> str:
-    """Render MCP server list with toggle switches matching your exact UI design."""
+    """
+    Generates HTML for the MCP server list with toggle switches and context menus.
+    
+    Each server entry displays its status, name, command, an enable/disable toggle, and a menu for editing, copying JSON, or deleting the server. Returns a styled HTML string for embedding in the UI.
+    """
     if not servers_config:
         return '<div class="mcp-empty-state">No MCP servers configured</div>'
 
@@ -440,11 +489,10 @@ def _render_mcp_server_list_with_toggles(servers_config: dict) -> str:
 
 
 def _render_mcp_server_list_simple(servers_config: dict) -> str:
-    """Render a simple MCP server list using CSS classes for better maintainability.
-
-    Note: Color contrast ratios meet WCAG AA standards:
-    - #aaa on #1a1a1a background: 6.35:1 (exceeds 4.5:1 requirement)
-    - #4CAF50 and #f44336 status colors provide sufficient contrast
+    """
+    Generates HTML for a simple, accessible MCP server list using CSS classes.
+    
+    Each server is displayed with its name, command, enabled/disabled status, and a controls hint. The output is styled for maintainability and meets accessibility contrast standards.
     """
     if not servers_config:
         return '<div class="mcp-empty-state">No MCP servers configured</div>'
@@ -480,12 +528,24 @@ def _render_mcp_server_list_simple(servers_config: dict) -> str:
 
 
 def _render_mcp_server_list(servers_config: dict) -> str:
-    """Legacy function - kept for compatibility."""
+    """
+    Renders the MCP server list as HTML using the simple legacy format.
+    
+    This function is maintained for compatibility and delegates to the simple server list renderer.
+    """
     return _render_mcp_server_list_simple(servers_config)
 
 
 def _create_llm_components(env_settings):
-    """Create main LLM configuration components."""
+    """
+    Creates Gradio UI components for configuring the main LLM provider, model, and related settings.
+    
+    Args:
+        env_settings: Dictionary of environment settings used to initialize component values.
+    
+    Returns:
+        A tuple containing Gradio components for LLM provider selection, model name, temperature, vision usage, Ollama context length, base URL, and API key.
+    """
     with gr.Group():
         with gr.Row():
             initial_llm_provider = get_env_value(env_settings, "LLM_PROVIDER", "openai")
@@ -714,7 +774,15 @@ def _create_agent_config_components(env_settings):
 
 def create_agent_settings_tab(webui_manager: WebuiManager):
     """
-    Creates an agent settings tab.
+    Creates and registers the agent settings tab UI for the web interface.
+    
+    This function builds a comprehensive Gradio-based tab for configuring agent behavior, including LLM and planner model selection, temperature, vision, API keys, agent operational limits, system prompts, and advanced timing/delay controls. It also integrates full management of MCP (Model Context Protocol) servers, supporting persistent storage, add/import/delete actions, and dynamic UI updates. All settings are synchronized with environment variables and persistent storage, with event handlers for auto-saving and cache invalidation where necessary.
+    
+    Args:
+        webui_manager: The WebuiManager instance used to manage UI components and environment settings.
+    
+    Returns:
+        A list of Gradio components representing the agent settings tab.
     """
     env_settings = load_env_settings_with_cache(webui_manager)
 
@@ -1097,7 +1165,15 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # Combined LLM provider change handler
     def handle_llm_provider_change(provider):
-        """Handle LLM provider change - update visibility and model dropdown"""
+        """
+        Handles changes to the LLM provider selection by updating the visibility of Ollama-specific components and refreshing the model dropdown options.
+        
+        Args:
+        	provider: The selected LLM provider name.
+        
+        Returns:
+        	A tuple containing the updated visibility state for Ollama components and the updated model dropdown component.
+        """
         try:
             # Update ollama context visibility
             ollama_visible = gr.update(visible=provider == "ollama")
@@ -1117,7 +1193,11 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # Combined Planner LLM provider change handler
     def handle_planner_llm_provider_change(provider):
-        """Handle Planner LLM provider change - update visibility and model dropdown"""
+        """
+        Updates the Planner LLM UI components when the provider changes.
+        
+        Returns updated visibility for the Ollama context input and a refreshed model dropdown based on the selected provider. On error, returns safe defaults.
+        """
         try:
             # Update ollama context visibility
             ollama_visible = gr.update(visible=provider == "ollama")
@@ -1139,18 +1219,41 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # MCP UI Event Handlers
     def show_add_server_modal():
+        """
+        Shows the modal dialog for adding a new MCP server and hides the import JSON modal.
+        
+        Returns:
+            Tuple of Gradio update objects to set the Add Server modal visible and the Import JSON modal hidden.
+        """
         logger.info("🔧 MCP: Showing Add Server modal")
         return gr.update(visible=True), gr.update(visible=False)
 
     def show_import_json_modal():
+        """
+        Displays the Import JSON modal for MCP server management.
+        
+        Returns:
+            Tuple of Gradio update objects to hide the Add Server modal and show the Import JSON modal.
+        """
         logger.info("🔧 MCP: Showing Import JSON modal")
         return gr.update(visible=False), gr.update(visible=True)
 
     def hide_modals():
+        """
+        Hides all MCP modal dialogs in the UI.
+        
+        Returns:
+            Two Gradio update objects setting modal visibility to False.
+        """
         logger.info("🔧 MCP: Hiding all modals")
         return gr.update(visible=False), gr.update(visible=False)
 
     def add_mcp_server(servers_state, name, command):
+        """
+        Adds a new MCP server to the current server state and updates the UI.
+        
+        If the name or command is missing, the server is not added and the input fields are cleared. On success, the server is added with the parsed command and arguments, enabled by default, and the updated configuration is saved to persistent storage. The function returns the updated server state, refreshed server list HTML, hides the add/import modals, and clears the input fields.
+        """
         logger.info(f"🔧 MCP: Adding server - Name: '{name}', Command: '{command}'")
 
         if not name or not command:
@@ -1188,6 +1291,11 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         )
 
     def import_mcp_from_json(servers_state, json_content):
+        """
+        Imports MCP server configurations from a JSON string and updates the current server state.
+        
+        Parses the provided JSON content, merges the imported MCP server configurations into the existing state, and persists the updated state to disk. Returns updated state, refreshed server list HTML, and UI updates to hide modals and clear the input field. On error, logs the exception and returns the current state with UI updates.
+        """
         logger.info(
             f"🔧 MCP: Importing JSON config (length: {len(json_content) if json_content else 0})"
         )
@@ -1232,7 +1340,16 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             )
 
     def toggle_mcp_server(servers_state, server_name):
-        """Toggle the enabled state of an MCP server"""
+        """
+        Toggles the enabled state of a specified MCP server and updates persistent storage.
+        
+        Args:
+            servers_state: Dictionary containing MCP server configurations.
+            server_name: Name of the MCP server to toggle.
+        
+        Returns:
+            A tuple containing the updated servers_state dictionary and the HTML string for the refreshed MCP server list with toggles.
+        """
         if server_name in servers_state:
             servers_state[server_name]["enabled"] = not servers_state[server_name][
                 "enabled"
@@ -1242,7 +1359,16 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         return servers_state, _render_mcp_server_list_with_toggles(servers_state)
 
     def delete_mcp_server(servers_state, server_name):
-        """Delete an MCP server using centralized action handler"""
+        """
+        Deletes an MCP server from the configuration and updates persistent storage.
+        
+        Args:
+            servers_state: The current MCP servers configuration dictionary.
+            server_name: The name of the server to delete.
+        
+        Returns:
+            A tuple containing the updated servers configuration and the refreshed HTML server list.
+        """
         servers_config, action_type, _ = _handle_server_action(
             servers_state, server_name, "🗑️ Delete"
         )
@@ -1251,7 +1377,11 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         return servers_config, _render_mcp_server_list_with_toggles(servers_config)
 
     def get_server_json(servers_state, server_name):
-        """Get JSON for a specific server using centralized action handler"""
+        """
+        Returns the JSON string representation of a specific MCP server's configuration.
+        
+        If the server exists, its configuration is retrieved using the centralized action handler and returned as a JSON string. Returns an empty string if the server is not found or the action fails.
+        """
         servers_config, action_type, json_data = _handle_server_action(
             servers_state, server_name, "📋 Copy JSON"
         )
@@ -1260,7 +1390,15 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         return ""
 
     def view_advanced_config(servers_state):
-        """Show the complete MCP configuration"""
+        """
+        Returns the full MCP server configuration as formatted JSON for display.
+        
+        Args:
+            servers_state: The current MCP servers configuration dictionary.
+        
+        Returns:
+            A tuple containing the JSON string of the MCP configuration (or a message if none are configured) and a Gradio update object to make the display visible.
+        """
         import json
 
         if servers_state:
@@ -1338,9 +1476,24 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # Add event handlers for individual server components
     def setup_server_events(server_components, servers_state):
-        """Setup event handlers for individual server toggle switches and menus."""
+        """
+        Sets up event handlers for MCP server toggle switches and context menus.
+        
+        For each server component, connects the toggle switch to enable or disable the server and the context menu to handle actions such as delete, copy JSON, and edit. Updates the server state and UI elements accordingly.
+        """
 
         def create_toggle_handler(server_name):
+            """
+            Creates a handler function to toggle the enabled state of a specific MCP server.
+            
+            The returned handler updates the server's enabled status, persists the change, and generates an HTML status indicator reflecting the new state.
+            
+            Args:
+                server_name: The name of the MCP server to toggle.
+            
+            Returns:
+                A function that takes a boolean `enabled` value, updates the server's status, saves the configuration, and returns the updated servers dictionary and status HTML.
+            """
             def toggle_handler(enabled):
                 logger.info(
                     f"🔧 MCP: Toggle {server_name} to {'enabled' if enabled else 'disabled'}"
@@ -1360,6 +1513,17 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             return toggle_handler
 
         def create_menu_handler(server_name):
+            """
+            Creates a handler function for MCP server context menu actions.
+            
+            The returned handler processes actions such as deleting a server, copying its JSON configuration, or initiating an edit request for the specified server.
+            
+            Args:
+                server_name: The name of the MCP server to operate on.
+            
+            Returns:
+                A function that takes an action string and performs the corresponding operation on the server configuration, returning the updated server dictionary and an empty string to reset the dropdown.
+            """
             def menu_handler(action):
                 logger.info(
                     f"🔧 MCP: Menu action '{action}' for server '{server_name}'"
@@ -1407,7 +1571,14 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # Save edit changes
     def save_server_edit(servers_state, server_name, new_command):
-        """Save edited server configuration"""
+        """
+        Updates the command and arguments of an existing MCP server configuration.
+        
+        If the server exists and the new command is not empty, parses the command string into the main command and its arguments, updates the server configuration, and returns the updated state along with refreshed UI components.
+        
+        Returns:
+            A tuple containing the updated servers state, refreshed server list HTML, a Gradio update to hide the edit modal, and cleared input fields for name and command.
+        """
         if server_name in servers_state and new_command.strip():
             # Parse command into command and args
             parts = new_command.strip().split()
@@ -1428,6 +1599,11 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     # Auto-save LLM API settings when they change
     def save_llm_api_setting(provider=None, api_key=None, base_url=None):
+        """
+        Saves the API key and base URL for the specified LLM provider to environment settings.
+        
+        If no provider is specified, uses the currently selected provider from the UI.
+        """
         if provider is None:
             provider = llm_provider.value
 
@@ -1709,7 +1885,11 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         max_delay=None,
         random_unit=None,
     ):
-        """Save delay settings to environment and invalidate agent cache"""
+        """
+        Saves delay configuration settings to environment variables and invalidates the agent's delay cache if applicable.
+        
+        Updates environment variables for fixed and random delay intervals based on the provided parameters, converts values to minutes, and persists the changes. If the active agent supports delay cache invalidation, the cache is cleared to apply the new settings.
+        """
         env_vars = webui_manager.load_env_settings()
 
         if enable_random is not None:

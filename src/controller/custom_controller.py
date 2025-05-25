@@ -1,4 +1,3 @@
-
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
 from browser_use.agent.views import ActionResult
@@ -143,7 +142,9 @@ class CustomController(Controller):
 
     def register_mcp_tools(self):
         """
-        Register the MCP tools used by this controller.
+        Registers MCP tools from the MCP client into the controller's action registry.
+        
+        Each tool is added with a unique name prefixed by 'mcp.' and associated with its parameter model and description. Logs information about registered tools and warns if the MCP client is not initialized.
         """
         if self.mcp_client:
             for server_name in self.mcp_client.server_name_to_tools:
@@ -162,5 +163,10 @@ class CustomController(Controller):
             logger.warning("MCP client not started.")
 
     async def close_mcp_client(self):
+        """
+        Closes the MCP client if it has been initialized.
+        
+        This method asynchronously shuts down the MCP client by invoking its async exit routine.
+        """
         if self.mcp_client:
             await self.mcp_client.__aexit__(None, None, None)
