@@ -1,11 +1,12 @@
 import gradio as gr
 
-from src.webui.webui_manager import WebuiManager
 from src.webui.components.agent_settings_tab import create_agent_settings_tab
 from src.webui.components.browser_settings_tab import create_browser_settings_tab
 from src.webui.components.browser_use_agent_tab import create_browser_use_agent_tab
 from src.webui.components.deep_research_agent_tab import create_deep_research_agent_tab
 from src.webui.components.load_save_config_tab import create_load_save_config_tab
+from src.webui.components.xagent_tab import XAgentTab
+from src.webui.webui_manager import WebuiManager
 
 theme_map = {
     "Default": gr.themes.Default(),
@@ -15,15 +16,15 @@ theme_map = {
     "Origin": gr.themes.Origin(),
     "Citrus": gr.themes.Citrus(),
     "Ocean": gr.themes.Ocean(),
-    "Base": gr.themes.Base()
+    "Base": gr.themes.Base(),
 }
 
 
 def create_ui(theme_name="Ocean"):
     css = """
     .gradio-container {
-        width: 70vw !important; 
-        max-width: 70% !important; 
+        width: 70vw !important;
+        max-width: 70% !important;
         margin-left: auto !important;
         margin-right: auto !important;
         padding-top: 10px !important;
@@ -57,7 +58,10 @@ def create_ui(theme_name="Ocean"):
     ui_manager = WebuiManager()
 
     with gr.Blocks(
-            title="Browser Use WebUI", theme=theme_map[theme_name], css=css, js=js_func,
+        title="Browser Use WebUI",
+        theme=theme_map[theme_name],
+        css=css,
+        js=js_func,
     ) as demo:
         with gr.Row():
             gr.Markdown(
@@ -86,7 +90,18 @@ def create_ui(theme_name="Ocean"):
                     elem_classes=["tab-header-text"],
                 )
                 with gr.Tabs():
-                    with gr.TabItem("Deep Research"):
+                    with gr.TabItem("🎭 XAgent (Stealth + Proxy)"):
+                        # Create XAgent tab with browser config
+                        browser_config = {
+                            "headless": False,
+                            "window_width": 1280,
+                            "window_height": 1100,
+                            "disable_security": False,
+                        }
+                        xagent_tab = XAgentTab(llm=None, browser_config=browser_config)
+                        xagent_tab.create_tab()
+
+                    with gr.TabItem("🔍 Deep Research"):
                         create_deep_research_agent_tab(ui_manager)
 
             with gr.TabItem("📁 Load & Save Config"):
