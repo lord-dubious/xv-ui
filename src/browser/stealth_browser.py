@@ -110,14 +110,22 @@ class StealthBrowser(Browser):
             chrome_args.extend(self.config.extra_browser_args)
 
         # Check if chrome remote debugging port is already taken
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if (
-                s.connect_ex(("localhost", self.config.chrome_remote_debugging_port))
-                == 0
-            ):
-                chrome_args.remove(
-                    f"--remote-debugging-port={self.config.chrome_remote_debugging_port}"
-                )
+        if (
+            hasattr(self.config, "chrome_remote_debugging_port")
+            and self.config.chrome_remote_debugging_port
+        ):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if (
+                    s.connect_ex(
+                        ("localhost", self.config.chrome_remote_debugging_port)
+                    )
+                    == 0
+                ):
+                    chrome_args = [
+                        arg
+                        for arg in chrome_args
+                        if not arg.startswith("--remote-debugging-port=")
+                    ]
 
         browser_class = getattr(playwright, self.config.browser_class)
         args = {

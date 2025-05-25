@@ -231,9 +231,7 @@ def _create_mcp_components() -> Tuple[gr.State, gr.Group, dict]:
                 value="<div style='color: #666; font-style: italic;'>No environment variables added</div>"
             )
 
-            gr.Button(
-                "➕ Variable", variant="secondary", size="sm"
-            )
+            gr.Button("➕ Variable", variant="secondary", size="sm")
 
             with gr.Row():
                 cancel_add_button = gr.Button("Cancel", variant="secondary")
@@ -1178,6 +1176,14 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         save_success = save_mcp_servers(servers_state)
         logger.info(f"🔧 MCP: Persistence save result: {save_success}")
 
+        # Provide user feedback
+        if save_success:
+            gr.Info(f"✅ MCP server '{name}' added and saved successfully!")
+        else:
+            gr.Warning(
+                f"⚠️ MCP server '{name}' added but failed to save to disk. Changes may be lost on restart."
+            )
+
         return (
             servers_state,
             _render_mcp_server_list_with_toggles(servers_state),
@@ -1213,6 +1219,16 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
             # Save to persistent storage
             save_success = save_mcp_servers(servers_state)
             logger.info(f"🔧 MCP: Persistence save result: {save_success}")
+
+            # Provide user feedback
+            if save_success:
+                gr.Info(
+                    f"✅ Successfully imported {imported_count} MCP servers and saved to disk!"
+                )
+            else:
+                gr.Warning(
+                    f"⚠️ Imported {imported_count} MCP servers but failed to save to disk. Changes may be lost on restart."
+                )
 
             return (
                 servers_state,

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
 from browser_use.browser.browser import BrowserConfig
+from browser_use.browser.context import BrowserContextConfig
 from langchain_community.tools.file_management import (
     ListDirectoryTool,
     ReadFileTool,
@@ -29,8 +30,6 @@ from langchain_core.tools import StructuredTool, Tool
 from langgraph.graph import StateGraph
 from pydantic import BaseModel, Field
 
-from browser_use.browser.context import BrowserContextConfig
-
 from src.agent.browser_use.browser_use_agent import BrowserUseAgent
 from src.browser.custom_browser import CustomBrowser
 from src.controller.custom_controller import CustomController
@@ -48,12 +47,12 @@ _BROWSER_AGENT_INSTANCES = {}
 
 
 async def run_single_browser_task(
-        task_query: str,
-        task_id: str,
-        llm: Any,  # Pass the main LLM
-        browser_config: Dict[str, Any],
-        stop_event: threading.Event,
-        use_vision: bool = False,
+    task_query: str,
+    task_id: str,
+    llm: Any,  # Pass the main LLM
+    browser_config: Dict[str, Any],
+    stop_event: threading.Event,
+    use_vision: bool = False,
 ) -> Dict[str, Any]:
     """
     Runs a single BrowserUseAgent task.
@@ -86,7 +85,9 @@ async def run_single_browser_task(
             browser_binary_path = os.getenv("BROWSER_PATH", None) or browser_binary_path
             if browser_binary_path == "":
                 browser_binary_path = None
-            browser_user_data = browser_user_data_dir or os.getenv("BROWSER_USER_DATA", None)
+            browser_user_data = browser_user_data_dir or os.getenv(
+                "BROWSER_USER_DATA", None
+            )
             if browser_user_data:
                 extra_args += [f"--user-data-dir={browser_user_data}"]
         else:
@@ -102,7 +103,7 @@ async def run_single_browser_task(
                 new_context_config=BrowserContextConfig(
                     window_width=window_w,
                     window_height=window_h,
-                )
+                ),
             )
         )
 
@@ -200,12 +201,12 @@ class BrowserSearchInput(BaseModel):
 
 
 async def _run_browser_search_tool(
-        queries: List[str],
-        task_id: str,  # Injected dependency
-        llm: Any,  # Injected dependency
-        browser_config: Dict[str, Any],
-        stop_event: threading.Event,
-        max_parallel_browsers: int = 1,
+    queries: List[str],
+    task_id: str,  # Injected dependency
+    llm: Any,  # Injected dependency
+    browser_config: Dict[str, Any],
+    stop_event: threading.Event,
+    max_parallel_browsers: int = 1,
 ) -> List[Dict[str, Any]]:
     """
     Internal function to execute parallel browser searches based on LLM-provided queries.
@@ -268,11 +269,11 @@ async def _run_browser_search_tool(
 
 
 def create_browser_search_tool(
-        llm: Any,
-        browser_config: Dict[str, Any],
-        task_id: str,
-        stop_event: threading.Event,
-        max_parallel_browsers: int = 1,
+    llm: Any,
+    browser_config: Dict[str, Any],
+    task_id: str,
+    stop_event: threading.Event,
+    max_parallel_browsers: int = 1,
 ) -> StructuredTool:
     """Factory function to create the browser search tool with necessary dependencies."""
     # Use partial to bind the dependencies that aren't part of the LLM call arguments
@@ -356,13 +357,22 @@ def _load_previous_state(task_id: str, output_dir: str) -> Dict[str, Any]:
                     if line.startswith("## "):  # Category
                         if current_category:  # Save previous category
                             loaded_plan.append(current_category)
-                            if not found_pending:  # If previous category was all done, advance cat counter
+                            if (
+                                not found_pending
+                            ):  # If previous category was all done, advance cat counter
                                 cat_counter += 1
                                 task_counter_in_cat = 0
-                        category_name = line[line.find(" "):].strip()  # Get text after "## X. "
-                        current_category = ResearchCategoryItem(category_name=category_name, tasks=[])
-                    elif (line.startswith("- [ ]") or line.startswith("- [x]") or line.startswith(
-                            "- [-]")) and current_category:  # Task
+                        category_name = line[
+                            line.find(" ") :
+                        ].strip()  # Get text after "## X. "
+                        current_category = ResearchCategoryItem(
+                            category_name=category_name, tasks=[]
+                        )
+                    elif (
+                        line.startswith("- [ ]")
+                        or line.startswith("- [x]")
+                        or line.startswith("- [-]")
+                    ) and current_category:  # Task
                         status = "pending"
                         if line.startswith("- [x]"):
                             status = "completed"
@@ -371,14 +381,20 @@ def _load_previous_state(task_id: str, output_dir: str) -> Dict[str, Any]:
 
                         task_desc = line[5:].strip()
                         current_category["tasks"].append(
-                            ResearchTaskItem(task_description=task_desc, status=status, queries=None,
-                                             result_summary=None)
+                            ResearchTaskItem(
+                                task_description=task_desc,
+                                status=status,
+                                queries=None,
+                                result_summary=None,
+                            )
                         )
                         if status == "pending" and not found_pending:
                             next_cat_idx = cat_counter
                             next_task_idx = task_counter_in_cat
                             found_pending = True
-                        if not found_pending:  # only increment if previous tasks were completed/failed
+                        if (
+                            not found_pending
+                        ):  # only increment if previous tasks were completed/failed
                             task_counter_in_cat += 1
 
                 if current_category:  # Append last category
@@ -386,7 +402,9 @@ def _load_previous_state(task_id: str, output_dir: str) -> Dict[str, Any]:
 
             if loaded_plan:
                 state_updates["research_plan"] = loaded_plan
-                if not found_pending and loaded_plan:  # All tasks were completed or failed
+                if (
+                    not found_pending and loaded_plan
+                ):  # All tasks were completed or failed
                     next_cat_idx = len(loaded_plan)  # Points beyond the last category
                     next_task_idx = 0
                 state_updates["current_category_index"] = next_cat_idx
@@ -399,7 +417,9 @@ def _load_previous_state(task_id: str, output_dir: str) -> Dict[str, Any]:
                 logger.warning(f"Plan file {plan_file} was empty or malformed.")
 
         except Exception as e:
-            logger.error(f"Failed to load or parse research plan {plan_file}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to load or parse research plan {plan_file}: {e}", exc_info=True
+            )
             state_updates["error_message"] = f"Failed to load research plan: {e}"
     else:
         logger.info(f"Plan file {plan_file} not found. Will start fresh.")
@@ -412,7 +432,9 @@ def _load_previous_state(task_id: str, output_dir: str) -> Dict[str, Any]:
         except Exception as e:
             logger.error(f"Failed to load search results {search_file}: {e}")
             state_updates["error_message"] = (
-                    state_updates.get("error_message", "") + f" Failed to load search results: {e}").strip()
+                state_updates.get("error_message", "")
+                + f" Failed to load search results: {e}"
+            ).strip()
 
     return state_updates
 
@@ -424,9 +446,14 @@ def _save_plan_to_md(plan: List[ResearchCategoryItem], output_dir: str):
             f.write("# Research Plan\n\n")
             for cat_idx, category in enumerate(plan):
                 f.write(f"## {cat_idx + 1}. {category['category_name']}\n\n")
-                for task_idx, task in enumerate(category['tasks']):
-                    marker = "- [x]" if task["status"] == "completed" else "- [ ]" if task[
-                                                                                          "status"] == "pending" else "- [-]"  # [-] for failed
+                for task_idx, task in enumerate(category["tasks"]):
+                    marker = (
+                        "- [x]"
+                        if task["status"] == "completed"
+                        else "- [ ]"
+                        if task["status"] == "pending"
+                        else "- [-]"
+                    )  # [-] for failed
                     f.write(f"  {marker} {task['task_description']}\n")
                 f.write("\n")
         logger.info(f"Hierarchical research plan saved to {plan_file}")
@@ -469,7 +496,9 @@ async def planning_node(state: DeepResearchState) -> Dict[str, Any]:
     output_dir = state["output_dir"]
 
     if existing_plan and (
-            state.get("current_category_index", 0) > 0 or state.get("current_task_index_in_category", 0) > 0):
+        state.get("current_category_index", 0) > 0
+        or state.get("current_task_index_in_category", 0) > 0
+    ):
         logger.info("Resuming with existing plan.")
         _save_plan_to_md(existing_plan, output_dir)  # Ensure it's saved initially
         # current_category_index and current_task_index_in_category should be set by _load_previous_state
@@ -520,7 +549,7 @@ Ensure the output is a valid JSON array.
 """
     messages = [
         SystemMessage(content="You are a research planning assistant outputting JSON."),
-        HumanMessage(content=prompt_text)
+        HumanMessage(content=prompt_text),
     ]
 
     try:
@@ -537,8 +566,11 @@ Ensure the output is a valid JSON array.
 
         new_plan: List[ResearchCategoryItem] = []
         for cat_idx, category_data in enumerate(parsed_plan_from_llm):
-            if not isinstance(category_data,
-                              dict) or "category_name" not in category_data or "tasks" not in category_data:
+            if (
+                not isinstance(category_data, dict)
+                or "category_name" not in category_data
+                or "tasks" not in category_data
+            ):
                 logger.warning(f"Skipping invalid category data: {category_data}")
                 continue
 
@@ -563,7 +595,9 @@ Ensure the output is a valid JSON array.
                                 result_summary=None,
                             )
                         )
-                    elif isinstance(task_desc, dict) and "task" in task_desc:  # common LLM mistake
+                    elif (
+                        isinstance(task_desc, dict) and "task" in task_desc
+                    ):  # common LLM mistake
                         tasks.append(
                             ResearchTaskItem(
                                 task_description=task_desc["task"],
@@ -574,7 +608,8 @@ Ensure the output is a valid JSON array.
                         )
                     else:
                         logger.warning(
-                            f"Skipping invalid task data: {task_desc} in category {category_data['category_name']}")
+                            f"Skipping invalid task data: {task_desc} in category {category_data['category_name']}"
+                        )
 
             new_plan.append(
                 ResearchCategoryItem(
@@ -598,7 +633,10 @@ Ensure the output is a valid JSON array.
         }
 
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON from LLM for plan: {e}. Response was: {raw_content}", exc_info=True)
+        logger.error(
+            f"Failed to parse JSON from LLM for plan: {e}. Response was: {raw_content}",
+            exc_info=True,
+        )
         return {"error_message": f"LLM generated invalid JSON for research plan: {e}"}
     except Exception as e:
         logger.error(f"Error during planning: {e}", exc_info=True)
@@ -630,20 +668,23 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
 
     current_category = plan[cat_idx]
     if task_idx >= len(current_category["tasks"]):
-        logger.info(f"All tasks in category '{current_category['category_name']}' completed. Moving to next category.")
+        logger.info(
+            f"All tasks in category '{current_category['category_name']}' completed. Moving to next category."
+        )
         # This logic is now effectively handled by should_continue and the index updates below
         # The next iteration will be caught by should_continue or this node with updated indices
         return {
             "current_category_index": cat_idx + 1,
             "current_task_index_in_category": 0,
-            "messages": state["messages"]  # Pass messages along
+            "messages": state["messages"],  # Pass messages along
         }
 
     current_task = current_category["tasks"][task_idx]
 
     if current_task["status"] == "completed":
         logger.info(
-            f"Task '{current_task['task_description']}' in category '{current_category['category_name']}' already completed. Skipping.")
+            f"Task '{current_task['task_description']}' in category '{current_category['category_name']}' already completed. Skipping."
+        )
         # Logic to find next task
         next_task_idx = task_idx + 1
         next_cat_idx = cat_idx
@@ -653,7 +694,7 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
         return {
             "current_category_index": next_cat_idx,
             "current_task_index_in_category": next_task_idx,
-            "messages": state["messages"]  # Pass messages along
+            "messages": state["messages"],  # Pass messages along
         }
 
     logger.info(
@@ -670,32 +711,39 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
         "Provide focused search queries relevant ONLY to this task. "
         "If you believe you have sufficient information from previous steps for this specific task, you can indicate that you are ready to summarize or that no further search is needed."
     )
-    current_task_message_history = [
-        HumanMessage(content=task_prompt_content)
-    ]
+    current_task_message_history = [HumanMessage(content=task_prompt_content)]
     if not state["messages"]:  # First actual execution message
         invocation_messages = [
-                                  SystemMessage(
-                                      content="You are a research assistant executing one task of a research plan. Focus on the current task only."),
-                              ] + current_task_message_history
+            SystemMessage(
+                content="You are a research assistant executing one task of a research plan. Focus on the current task only."
+            ),
+        ] + current_task_message_history
     else:
         invocation_messages = state["messages"] + current_task_message_history
 
     try:
-        logger.info(f"Invoking LLM with tools for task: {current_task['task_description']}")
+        logger.info(
+            f"Invoking LLM with tools for task: {current_task['task_description']}"
+        )
         ai_response: BaseMessage = await llm_with_tools.ainvoke(invocation_messages)
         logger.info("LLM invocation complete.")
 
         tool_results = []
         executed_tool_names = []
-        current_search_results = state.get("search_results", [])  # Get existing search results
+        current_search_results = state.get(
+            "search_results", []
+        )  # Get existing search results
 
         if not isinstance(ai_response, AIMessage) or not ai_response.tool_calls:
             logger.warning(
                 f"LLM did not call any tool for task '{current_task['task_description']}'. Response: {ai_response.content[:100]}..."
             )
-            current_task["status"] = "pending"  # Or "completed_no_tool" if LLM explains it's done
-            current_task["result_summary"] = f"LLM did not use a tool. Response: {ai_response.content}"
+            current_task["status"] = (
+                "pending"  # Or "completed_no_tool" if LLM explains it's done
+            )
+            current_task["result_summary"] = (
+                f"LLM did not use a tool. Response: {ai_response.content}"
+            )
             current_task["current_category_index"] = cat_idx
             current_task["current_task_index_in_category"] = task_idx
             return current_task
@@ -707,63 +755,109 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
                 tool_args = tool_call.get("args", {})
                 tool_call_id = tool_call.get("id")
 
-                logger.info(f"LLM requested tool call: {tool_name} with args: {tool_args}")
+                logger.info(
+                    f"LLM requested tool call: {tool_name} with args: {tool_args}"
+                )
                 executed_tool_names.append(tool_name)
                 selected_tool = next((t for t in tools if t.name == tool_name), None)
 
                 if not selected_tool:
-                    logger.error(f"LLM called tool '{tool_name}' which is not available.")
+                    logger.error(
+                        f"LLM called tool '{tool_name}' which is not available."
+                    )
                     tool_results.append(
-                        ToolMessage(content=f"Error: Tool '{tool_name}' not found.", tool_call_id=tool_call_id))
+                        ToolMessage(
+                            content=f"Error: Tool '{tool_name}' not found.",
+                            tool_call_id=tool_call_id,
+                        )
+                    )
                     continue
 
                 try:
                     stop_event = _AGENT_STOP_FLAGS.get(task_id)
                     if stop_event and stop_event.is_set():
-                        logger.info(f"Stop requested before executing tool: {tool_name}")
+                        logger.info(
+                            f"Stop requested before executing tool: {tool_name}"
+                        )
                         current_task["status"] = "pending"  # Or a new "stopped" status
                         _save_plan_to_md(plan, output_dir)
-                        return {"stop_requested": True, "research_plan": plan, "current_category_index": cat_idx,
-                                "current_task_index_in_category": task_idx}
+                        return {
+                            "stop_requested": True,
+                            "research_plan": plan,
+                            "current_category_index": cat_idx,
+                            "current_task_index_in_category": task_idx,
+                        }
 
                     logger.info(f"Executing tool: {tool_name}")
                     tool_output = await selected_tool.ainvoke(tool_args)
                     logger.info(f"Tool '{tool_name}' executed successfully.")
 
                     if tool_name == "parallel_browser_search":
-                        current_search_results.extend(tool_output)  # tool_output is List[Dict]
+                        current_search_results.extend(
+                            tool_output
+                        )  # tool_output is List[Dict]
                     else:  # For other tools, we might need specific handling or just log
-                        logger.info(f"Result from tool '{tool_name}': {str(tool_output)[:200]}...")
+                        logger.info(
+                            f"Result from tool '{tool_name}': {str(tool_output)[:200]}..."
+                        )
                         # Storing non-browser results might need a different structure or key in search_results
                         current_search_results.append(
-                            {"tool_name": tool_name, "args": tool_args, "output": str(tool_output),
-                             "status": "completed"})
+                            {
+                                "tool_name": tool_name,
+                                "args": tool_args,
+                                "output": str(tool_output),
+                                "status": "completed",
+                            }
+                        )
 
-                    tool_results.append(ToolMessage(content=json.dumps(tool_output), tool_call_id=tool_call_id))
+                    tool_results.append(
+                        ToolMessage(
+                            content=json.dumps(tool_output), tool_call_id=tool_call_id
+                        )
+                    )
 
                 except Exception as e:
-                    logger.error(f"Error executing tool '{tool_name}': {e}", exc_info=True)
+                    logger.error(
+                        f"Error executing tool '{tool_name}': {e}", exc_info=True
+                    )
                     tool_results.append(
-                        ToolMessage(content=f"Error executing tool {tool_name}: {e}", tool_call_id=tool_call_id))
+                        ToolMessage(
+                            content=f"Error executing tool {tool_name}: {e}",
+                            tool_call_id=tool_call_id,
+                        )
+                    )
                     current_search_results.append(
-                        {"tool_name": tool_name, "args": tool_args, "status": "failed", "error": str(e)})
+                        {
+                            "tool_name": tool_name,
+                            "args": tool_args,
+                            "status": "failed",
+                            "error": str(e),
+                        }
+                    )
 
             # After processing all tool calls for this task
-            step_failed_tool_execution = any("Error:" in str(tr.content) for tr in tool_results)
+            step_failed_tool_execution = any(
+                "Error:" in str(tr.content) for tr in tool_results
+            )
             # Consider a task successful if a browser search was attempted and didn't immediately error out during call
             # The browser search itself returns status for each query.
 
             if step_failed_tool_execution:
                 current_task["status"] = "failed"
-                current_task[
-                    "result_summary"] = f"Tool execution failed. Errors: {[tr.content for tr in tool_results if 'Error' in str(tr.content)]}"
+                current_task["result_summary"] = (
+                    f"Tool execution failed. Errors: {[tr.content for tr in tool_results if 'Error' in str(tr.content)]}"
+                )
             elif executed_tool_names:  # If any tool was called
                 current_task["status"] = "completed"
-                current_task["result_summary"] = f"Executed tool(s): {', '.join(executed_tool_names)}."
+                current_task["result_summary"] = (
+                    f"Executed tool(s): {', '.join(executed_tool_names)}."
+                )
                 # TODO: Could ask LLM to summarize the tool_results for this task if needed, rather than just listing tools.
             else:  # No tool calls but AI response had .tool_calls structure (empty)
                 current_task["status"] = "failed"  # Or a more specific status
-                current_task["result_summary"] = "LLM prepared for tool call but provided no tools."
+                current_task["result_summary"] = (
+                    "LLM prepared for tool call but provided no tools."
+                )
 
         # Save progress
         _save_plan_to_md(plan, output_dir)
@@ -776,7 +870,12 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
             next_cat_idx += 1
             next_task_idx = 0
 
-        updated_messages = state["messages"] + current_task_message_history + [ai_response] + tool_results
+        updated_messages = (
+            state["messages"]
+            + current_task_message_history
+            + [ai_response]
+            + tool_results
+        )
 
         return {
             "research_plan": plan,
@@ -787,8 +886,10 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Unhandled error during research execution for task '{current_task['task_description']}': {e}",
-                     exc_info=True)
+        logger.error(
+            f"Unhandled error during research execution for task '{current_task['task_description']}': {e}",
+            exc_info=True,
+        )
         current_task["status"] = "failed"
         _save_plan_to_md(plan, output_dir)
         # Determine next indices even on error to attempt to move on
@@ -802,7 +903,8 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
             "current_category_index": next_cat_idx,
             "current_task_index_in_category": next_task_idx,
             "error_message": f"Core Execution Error on task '{current_task['task_description']}': {e}",
-            "messages": state["messages"] + current_task_message_history  # Preserve messages up to error
+            "messages": state["messages"]
+            + current_task_message_history,  # Preserve messages up to error
         }
 
 
@@ -834,27 +936,41 @@ async def synthesis_node(state: DeepResearchState) -> Dict[str, Any]:
     formatted_results = ""
     references = {}
     for i, result_entry in enumerate(search_results):
-        query = result_entry.get("query", "Unknown Query")  # From parallel_browser_search
+        query = result_entry.get(
+            "query", "Unknown Query"
+        )  # From parallel_browser_search
         tool_name = result_entry.get("tool_name")  # From other tools
         status = result_entry.get("status", "unknown")
         result_data = result_entry.get("result")  # From BrowserUseAgent's final_result
         tool_output_str = result_entry.get("output")  # From other tools
 
-        if tool_name == "parallel_browser_search" and status == "completed" and result_data:
+        if (
+            tool_name == "parallel_browser_search"
+            and status == "completed"
+            and result_data
+        ):
             # result_data is the summary from BrowserUseAgent
             formatted_results += f'### Finding from Web Search Query: "{query}"\n'
             formatted_results += f"- **Summary:**\n{result_data}\n"  # result_data is already a summary string here
             # If result_data contained title/URL, you'd format them here.
             # The current BrowserUseAgent returns a string summary directly as 'final_data' in run_single_browser_task
             formatted_results += "---\n"
-        elif tool_name != "parallel_browser_search" and status == "completed" and tool_output_str:
+        elif (
+            tool_name != "parallel_browser_search"
+            and status == "completed"
+            and tool_output_str
+        ):
             formatted_results += f'### Finding from Tool: "{tool_name}" (Args: {result_entry.get("args")})\n'
             formatted_results += f"- **Output:**\n{tool_output_str}\n"
             formatted_results += "---\n"
         elif status == "failed":
             error = result_entry.get("error")
-            q_or_t = f"Query: \"{query}\"" if query != "Unknown Query" else f"Tool: \"{tool_name}\""
-            formatted_results += f'### Failed {q_or_t}\n'
+            q_or_t = (
+                f'Query: "{query}"'
+                if query != "Unknown Query"
+                else f'Tool: "{tool_name}"'
+            )
+            formatted_results += f"### Failed {q_or_t}\n"
             formatted_results += f"- **Error:** {error}\n"
             formatted_results += "---\n"
 
@@ -862,8 +978,14 @@ async def synthesis_node(state: DeepResearchState) -> Dict[str, Any]:
     plan_summary = "\nResearch Plan Followed:\n"
     for cat_idx, category in enumerate(plan):
         plan_summary += f"\n#### Category {cat_idx + 1}: {category['category_name']}\n"
-        for task_idx, task in enumerate(category['tasks']):
-            marker = "[x]" if task["status"] == "completed" else "[ ]" if task["status"] == "pending" else "[-]"
+        for task_idx, task in enumerate(category["tasks"]):
+            marker = (
+                "[x]"
+                if task["status"] == "completed"
+                else "[ ]"
+                if task["status"] == "pending"
+                else "[-]"
+            )
             plan_summary += f"  - {marker} {task['task_description']}\n"
 
     synthesis_prompt = ChatPromptTemplate.from_messages(
@@ -937,13 +1059,19 @@ def should_continue(state: DeepResearchState) -> str:
     if state.get("stop_requested"):
         logger.info("Stop requested, routing to END.")
         return "end_run"
-    if state.get("error_message") and "Core Execution Error" in state["error_message"]:  # Critical error in node
-        logger.warning(f"Critical error detected: {state['error_message']}. Routing to END.")
+    if (
+        state.get("error_message") and "Core Execution Error" in state["error_message"]
+    ):  # Critical error in node
+        logger.warning(
+            f"Critical error detected: {state['error_message']}. Routing to END."
+        )
         return "end_run"
 
     plan = state.get("research_plan")
     cat_idx = state.get("current_category_index", 0)
-    task_idx = state.get("current_task_index_in_category", 0)  # This is the *next* task to check
+    task_idx = state.get(
+        "current_task_index_in_category", 0
+    )  # This is the *next* task to check
 
     if not plan:
         logger.warning("No research plan found. Routing to END.")
@@ -969,7 +1097,9 @@ def should_continue(state: DeepResearchState) -> str:
                 return "execute_research"
 
     # If we've gone through all categories and tasks (cat_idx >= len(plan))
-    logger.info("All plan categories and tasks processed or current indices are out of bounds. Routing to Synthesis.")
+    logger.info(
+        "All plan categories and tasks processed or current indices are out of bounds. Routing to Synthesis."
+    )
     return "synthesize_report"
 
 
@@ -978,10 +1108,10 @@ def should_continue(state: DeepResearchState) -> str:
 
 class DeepResearchAgent:
     def __init__(
-            self,
-            llm: Any,
-            browser_config: Dict[str, Any],
-            mcp_server_config: Optional[Dict[str, Any]] = None,
+        self,
+        llm: Any,
+        browser_config: Dict[str, Any],
+        mcp_server_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initializes the DeepSearchAgent.
@@ -1003,7 +1133,7 @@ class DeepResearchAgent:
         self.runner: Optional[asyncio.Task] = None  # To hold the asyncio task for run
 
     async def _setup_tools(
-            self, task_id: str, stop_event: threading.Event, max_parallel_browsers: int = 1
+        self, task_id: str, stop_event: threading.Event, max_parallel_browsers: int = 1
     ) -> List[Tool]:
         """Sets up the basic tools (File I/O) and optional MCP tools."""
         tools = [
@@ -1048,13 +1178,16 @@ class DeepResearchAgent:
         """Compiles the Langgraph state machine."""
         workflow = StateGraph(DeepResearchState)
 
+        def end_run_node(state):
+            """Simple end node that logs completion"""
+            logger.info("--- Reached End Run Node ---")
+            return {}
+
         # Add nodes
         workflow.add_node("plan_research", planning_node)
         workflow.add_node("execute_research", research_execution_node)
         workflow.add_node("synthesize_report", synthesis_node)
-        workflow.add_node(
-            "end_run", lambda state: logger.info("--- Reached End Run Node ---") or {}
-        )  # Simple end node
+        workflow.add_node("end_run", end_run_node)  # Simple end node
 
         # Define edges
         workflow.set_entry_point("plan_research")
@@ -1080,11 +1213,11 @@ class DeepResearchAgent:
         return app
 
     async def run(
-            self,
-            topic: str,
-            task_id: Optional[str] = None,
-            save_dir: str = "./tmp/deep_research",
-            max_parallel_browsers: int = 1,
+        self,
+        topic: str,
+        task_id: Optional[str] = None,
+        save_dir: str = "./tmp/deep_research",
+        max_parallel_browsers: int = 1,
     ) -> Dict[str, Any]:
         """
         Starts the deep research process (Async Generator Version).

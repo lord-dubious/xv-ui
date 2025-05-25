@@ -123,6 +123,9 @@ class XAgent:
         logger.info(f"🎭 Starting XAgent task: {task}")
         logger.info(f"🆔 Task ID: {self.current_task_id}")
 
+        # Initialize browser variable for cleanup
+        browser = None
+
         try:
             # Test proxies if enabled (commented out for this branch)
             # if self.proxy_manager and test_proxies:
@@ -190,7 +193,7 @@ class XAgent:
         finally:
             # Cleanup
             try:
-                if "browser" in locals():
+                if browser:
                     await browser.close()
             except Exception as e:
                 logger.error(f"Error closing browser: {e}")
@@ -217,9 +220,9 @@ class XAgent:
         - Advanced fingerprint resistance
 
         🌐 PROXY FEATURES:
-        - All connections routed through SOCKS5 proxy
-        - Rotating IP addresses for anonymity
-        - Connection isolation and leak prevention
+        - Proxy support planned (currently disabled)
+        - Future: SOCKS5 proxy routing
+        - Future: IP rotation for anonymity
 
         🛡️ DETECTION BYPASS:
         - Cloudflare, Kasada, Akamai bypass

@@ -86,8 +86,21 @@ class StealthBrowserContext(BrowserContext):
         except Exception as e:
             logger.warning(f"⚠️ Some Patchright stealth configurations failed: {e}")
 
-    async def _create_context(self, browser: Any) -> PatchrightBrowserContext:  # type: ignore[override]
-        """Create a new Patchright browser context with Chrome-optimized stealth."""
+    async def _create_context(
+        self, browser_or_context: Any
+    ) -> PatchrightBrowserContext:  # type: ignore[override]
+        """
+        Create or configure a Patchright browser context with Chrome-optimized stealth.
+
+        Note: When using launch_persistent_context, the browser object IS the context,
+        so this method just applies stealth configurations to the existing context.
+
+        Args:
+            browser_or_context: The browser/context object from launch_persistent_context
+
+        Returns:
+            The configured context
+        """
         logger.info(
             "🎭 Creating StealthBrowserContext with Patchright Chrome optimizations..."
         )
@@ -97,7 +110,9 @@ class StealthBrowserContext(BrowserContext):
 
         # For persistent context, we don't create a new context - it's already created
         # Just return the existing context from the browser
-        context = browser  # With launch_persistent_context, browser IS the context
+        context = (
+            browser_or_context  # With launch_persistent_context, browser IS the context
+        )
 
         # Apply Patchright-specific stealth measures
         await self._setup_context_stealth(context)
@@ -111,7 +126,7 @@ class StealthBrowserContext(BrowserContext):
         """Get information about the StealthBrowserContext with Patchright details."""
         return {
             "type": "StealthBrowserContext",
-            "engine": "Patchright", 
+            "engine": "Patchright",
             "browser_support": "Chrome/Chromium only",
             "stealth_features": [
                 "Runtime.enable leak patched (isolated ExecutionContexts)",
@@ -125,7 +140,7 @@ class StealthBrowserContext(BrowserContext):
             ],
             "detection_bypass": [
                 "Cloudflare",
-                "Kasada", 
+                "Kasada",
                 "Akamai",
                 "Shape/F5",
                 "Bet365",

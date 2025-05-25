@@ -1,6 +1,5 @@
 import asyncio
 import os
-import pdb
 import sys
 from pprint import pprint
 
@@ -295,7 +294,7 @@ async def test_browser_use_parallel():
         print("\nErrors:")
         pprint(history.errors(), indent=4)
 
-        pdb.set_trace()
+        # pdb.set_trace()  # Commented out for production
 
     except Exception:
         import traceback

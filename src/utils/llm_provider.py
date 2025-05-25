@@ -1,45 +1,42 @@
-from openai import OpenAI
-from langchain_openai import ChatOpenAI
-from langchain_core.language_models.base import (
-    LanguageModelInput,
-)
 import os
-from langchain_core.messages import (
-    AIMessage,
-    SystemMessage,
-)
-from langchain_ollama import ChatOllama
-from langchain_core.runnables import RunnableConfig
-
 from typing import (
     Any,
     Optional,
 )
+
 from langchain_anthropic import ChatAnthropic
-from langchain_mistralai import ChatMistralAI
+from langchain_core.language_models.base import (
+    LanguageModelInput,
+)
+from langchain_core.messages import (
+    AIMessage,
+    SystemMessage,
+)
+from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import AzureChatOpenAI
 from langchain_ibm import ChatWatsonx
+from langchain_mistralai import ChatMistralAI
+from langchain_ollama import ChatOllama
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from openai import OpenAI
 
 from src.utils import config
 
 
 class DeepSeekR1ChatOpenAI(ChatOpenAI):
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.client = OpenAI(
-            base_url=kwargs.get("base_url"),
-            api_key=kwargs.get("api_key")
+            base_url=kwargs.get("base_url"), api_key=kwargs.get("api_key")
         )
 
     async def ainvoke(
-            self,
-            input: LanguageModelInput,
-            config: Optional[RunnableConfig] = None,
-            *,
-            stop: Optional[list[str]] = None,
-            **kwargs: Any,
+        self,
+        input: LanguageModelInput,
+        config: Optional[RunnableConfig] = None,
+        *,
+        stop: Optional[list[str]] = None,
+        **kwargs: Any,
     ) -> AIMessage:
         message_history = []
         for input_ in input:
@@ -51,8 +48,7 @@ class DeepSeekR1ChatOpenAI(ChatOpenAI):
                 message_history.append({"role": "user", "content": input_.content})
 
         response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=message_history
+            model=self.model_name, messages=message_history
         )
 
         reasoning_content = response.choices[0].message.reasoning_content
@@ -60,12 +56,12 @@ class DeepSeekR1ChatOpenAI(ChatOpenAI):
         return AIMessage(content=content, reasoning_content=reasoning_content)
 
     def invoke(
-            self,
-            input: LanguageModelInput,
-            config: Optional[RunnableConfig] = None,
-            *,
-            stop: Optional[list[str]] = None,
-            **kwargs: Any,
+        self,
+        input: LanguageModelInput,
+        config: Optional[RunnableConfig] = None,
+        *,
+        stop: Optional[list[str]] = None,
+        **kwargs: Any,
     ) -> AIMessage:
         message_history = []
         for input_ in input:
@@ -77,8 +73,7 @@ class DeepSeekR1ChatOpenAI(ChatOpenAI):
                 message_history.append({"role": "user", "content": input_.content})
 
         response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=message_history
+            model=self.model_name, messages=message_history
         )
 
         reasoning_content = response.choices[0].message.reasoning_content
@@ -87,35 +82,42 @@ class DeepSeekR1ChatOpenAI(ChatOpenAI):
 
 
 class DeepSeekR1ChatOllama(ChatOllama):
-
     async def ainvoke(
-            self,
-            input: LanguageModelInput,
-            config: Optional[RunnableConfig] = None,
-            *,
-            stop: Optional[list[str]] = None,
-            **kwargs: Any,
+        self,
+        input: LanguageModelInput,
+        config: Optional[RunnableConfig] = None,
+        *,
+        stop: Optional[list[str]] = None,
+        **kwargs: Any,
     ) -> AIMessage:
         org_ai_message = await super().ainvoke(input=input)
         org_content = org_ai_message.content
-        reasoning_content = org_content.split("</think>")[0].replace("<think>", "")
-        content = org_content.split("</think>")[1]
+        if "</think>" in org_content:
+            reasoning_content = org_content.split("</think>")[0].replace("<think>", "")
+            content = org_content.split("</think>")[1]
+        else:
+            reasoning_content = ""
+            content = org_content
         if "**JSON Response:**" in content:
             content = content.split("**JSON Response:**")[-1]
         return AIMessage(content=content, reasoning_content=reasoning_content)
 
     def invoke(
-            self,
-            input: LanguageModelInput,
-            config: Optional[RunnableConfig] = None,
-            *,
-            stop: Optional[list[str]] = None,
-            **kwargs: Any,
+        self,
+        input: LanguageModelInput,
+        config: Optional[RunnableConfig] = None,
+        *,
+        stop: Optional[list[str]] = None,
+        **kwargs: Any,
     ) -> AIMessage:
         org_ai_message = super().invoke(input=input)
         org_content = org_ai_message.content
-        reasoning_content = org_content.split("</think>")[0].replace("<think>", "")
-        content = org_content.split("</think>")[1]
+        if "</think>" in org_content:
+            reasoning_content = org_content.split("</think>")[0].replace("<think>", "")
+            content = org_content.split("</think>")[1]
+        else:
+            reasoning_content = ""
+            content = org_content
         if "**JSON Response:**" in content:
             content = content.split("**JSON Response:**")[-1]
         return AIMessage(content=content, reasoning_content=reasoning_content)
@@ -132,7 +134,9 @@ def get_llm_model(provider: str, **kwargs):
         env_var = f"{provider.upper()}_API_KEY"
         api_key = kwargs.get("api_key", "") or os.getenv(env_var, "")
         if not api_key:
-            provider_display = config.PROVIDER_DISPLAY_NAMES.get(provider, provider.upper())
+            provider_display = config.PROVIDER_DISPLAY_NAMES.get(
+                provider, provider.upper()
+            )
             error_msg = f"💥 {provider_display} API key not found! 🔑 Please set the `{env_var}` environment variable or provide it in the UI."
             raise ValueError(error_msg)
         kwargs["api_key"] = api_key
@@ -149,7 +153,7 @@ def get_llm_model(provider: str, **kwargs):
             base_url=base_url,
             api_key=api_key,
         )
-    elif provider == 'mistral':
+    elif provider == "mistral":
         if not kwargs.get("base_url", ""):
             base_url = os.getenv("MISTRAL_ENDPOINT", "https://api.mistral.ai/v1")
         else:
@@ -229,7 +233,9 @@ def get_llm_model(provider: str, **kwargs):
             base_url = os.getenv("AZURE_OPENAI_ENDPOINT", "")
         else:
             base_url = kwargs.get("base_url")
-        api_version = kwargs.get("api_version", "") or os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
+        api_version = kwargs.get("api_version", "") or os.getenv(
+            "AZURE_OPENAI_API_VERSION", "2025-01-01-preview"
+        )
         return AzureChatOpenAI(
             model=kwargs.get("model_name", "gpt-4o"),
             temperature=kwargs.get("temperature", 0.0),
@@ -239,7 +245,9 @@ def get_llm_model(provider: str, **kwargs):
         )
     elif provider == "alibaba":
         if not kwargs.get("base_url", ""):
-            base_url = os.getenv("ALIBABA_ENDPOINT", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+            base_url = os.getenv(
+                "ALIBABA_ENDPOINT", "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            )
         else:
             base_url = kwargs.get("base_url")
 
@@ -252,7 +260,7 @@ def get_llm_model(provider: str, **kwargs):
     elif provider == "ibm":
         parameters = {
             "temperature": kwargs.get("temperature", 0.0),
-            "max_tokens": kwargs.get("num_ctx", 32000)
+            "max_tokens": kwargs.get("num_ctx", 32000),
         }
         if not kwargs.get("base_url", ""):
             base_url = os.getenv("IBM_ENDPOINT", "https://us-south.ml.cloud.ibm.com")
@@ -264,7 +272,7 @@ def get_llm_model(provider: str, **kwargs):
             url=base_url,
             project_id=os.getenv("IBM_PROJECT_ID"),
             apikey=os.getenv("IBM_API_KEY"),
-            params=parameters
+            params=parameters,
         )
     elif provider == "moonshot":
         return ChatOpenAI(

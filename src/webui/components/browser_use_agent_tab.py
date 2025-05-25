@@ -1014,9 +1014,14 @@ def create_browser_use_agent_tab(webui_manager: WebuiManager):
 
     # --- Define UI Components ---
     tab_components = {}
+
+    def get_chat_history():
+        """Get chat history for chatbot"""
+        return webui_manager.bu_chat_history
+
     with gr.Column():
         chatbot = gr.Chatbot(
-            lambda: webui_manager.bu_chat_history,  # Load history dynamically
+            get_chat_history,  # Load history dynamically
             elem_id="browser_use_chatbot",
             label="Agent Interaction",
             type="messages",
