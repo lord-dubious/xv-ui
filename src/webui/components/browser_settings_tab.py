@@ -34,7 +34,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
     # Load persistent settings from environment
     env_settings = load_env_settings_with_cache(webui_manager)
 
-    input_components = set(webui_manager.get_components())
+    set(webui_manager.get_components())
     tab_components = {}
 
     with gr.Group():

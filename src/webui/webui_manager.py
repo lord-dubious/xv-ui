@@ -1,23 +1,18 @@
-import json
-from collections.abc import Generator
-from typing import TYPE_CHECKING
-import os
-import gradio as gr
-from datetime import datetime
-from typing import Optional, Dict, List, Tuple
-import uuid
 import asyncio
-import re
-from src.utils.env_utils import read_env_file, write_env_file, is_sensitive_key, categorize_env_var, get_env_groups
+import json
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
 
-from gradio.components import Component
-from browser_use.browser.browser import Browser
-from browser_use.browser.context import BrowserContext
+import gradio as gr
 from browser_use.agent.service import Agent
+from gradio.components import Component
+
+from src.agent.deep_research.deep_research_agent import DeepResearchAgent
 from src.browser.custom_browser import CustomBrowser
 from src.browser.custom_context import CustomBrowserContext
 from src.controller.custom_controller import CustomController
-from src.agent.deep_research.deep_research_agent import DeepResearchAgent
+from src.utils.env_utils import read_env_file, write_env_file
 
 
 class WebuiManager:
@@ -51,7 +46,9 @@ class WebuiManager:
         self.dr_agent_task_id: Optional[str] = None
         self.dr_save_dir: Optional[str] = None
 
-    def add_components(self, tab_name: str, components_dict: dict[str, "Component"]) -> None:
+    def add_components(
+        self, tab_name: str, components_dict: dict[str, "Component"]
+    ) -> None:
         """
         Add tab components
         """
@@ -84,13 +81,18 @@ class WebuiManager:
         """
         cur_settings = {}
         for comp in components:
-            if not isinstance(comp, gr.Button) and not isinstance(comp, gr.File) and str(
-                    getattr(comp, "interactive", True)).lower() != "false":
+            if (
+                not isinstance(comp, gr.Button)
+                and not isinstance(comp, gr.File)
+                and str(getattr(comp, "interactive", True)).lower() != "false"
+            ):
                 comp_id = self.get_id_by_component(comp)
                 cur_settings[comp_id] = components[comp]
 
         config_name = datetime.now().strftime("%Y%m%d-%H%M%S")
-        with open(os.path.join(self.settings_save_dir, f"{config_name}.json"), "w") as fw:
+        with open(
+            os.path.join(self.settings_save_dir, f"{config_name}.json"), "w"
+        ) as fw:
             json.dump(cur_settings, fw, indent=4)
 
         return os.path.join(self.settings_save_dir, f"{config_name}.json")
@@ -107,19 +109,23 @@ class WebuiManager:
             if comp_id in self.id_to_component:
                 comp = self.id_to_component[comp_id]
                 if comp.__class__.__name__ == "Chatbot":
-                    update_components[comp] = comp.__class__(value=comp_val, type="messages")
+                    update_components[comp] = comp.__class__(
+                        value=comp_val, type="messages"
+                    )
                 else:
                     update_components[comp] = comp.__class__(value=comp_val)
 
         config_status = self.id_to_component["load_save_config.config_status"]
         update_components.update(
             {
-                config_status: config_status.__class__(value=f"Successfully loaded config: {config_path}")
+                config_status: config_status.__class__(
+                    value=f"Successfully loaded config: {config_path}"
+                )
             }
         )
         yield update_components
 
-    def load_env_settings(self, env_path: str = '.env') -> Dict[str, str]:
+    def load_env_settings(self, env_path: str = ".env") -> Dict[str, str]:
         """
         Load environment settings from .env file
 
@@ -131,7 +137,9 @@ class WebuiManager:
         """
         return read_env_file(env_path)
 
-    def save_env_settings(self, env_vars: Dict[str, str], env_path: str = '.env') -> bool:
+    def save_env_settings(
+        self, env_vars: Dict[str, str], env_path: str = ".env"
+    ) -> bool:
         """
         Save environment settings to .env file
 
@@ -144,7 +152,9 @@ class WebuiManager:
         """
         return write_env_file(env_vars, env_path)
 
-    def save_api_keys_to_env(self, provider: str, api_key: str = None, base_url: str = None) -> bool:
+    def save_api_keys_to_env(
+        self, provider: str, api_key: str = None, base_url: str = None
+    ) -> bool:
         """
         Save API keys to .env file
 
@@ -169,7 +179,12 @@ class WebuiManager:
         # Save back to .env file
         return self.save_env_settings(env_vars)
 
-    def save_browser_settings_to_env(self, settings: Dict[str, str] = None, setting_name: str = None, setting_value = None) -> bool:
+    def save_browser_settings_to_env(
+        self,
+        settings: Dict[str, str] = None,
+        setting_name: str = None,
+        setting_value=None,
+    ) -> bool:
         """
         Save browser settings to .env file
 

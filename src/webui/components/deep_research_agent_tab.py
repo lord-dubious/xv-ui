@@ -1,12 +1,10 @@
 import gradio as gr
 from gradio.components import Component
-from functools import partial
 
 from src.webui.webui_manager import WebuiManager
-from src.utils import config
 import logging
 import os
-from typing import Any, Dict, AsyncGenerator, Optional, Tuple, Union
+from typing import Any, Dict, AsyncGenerator, Optional
 import asyncio
 import json
 from src.agent.deep_research.deep_research_agent import DeepResearchAgent
@@ -371,7 +369,7 @@ def create_deep_research_agent_tab(webui_manager: WebuiManager):
     """
     Creates a deep research agent tab
     """
-    input_components = set(webui_manager.get_components())
+    set(webui_manager.get_components())
     tab_components = {}
 
     with gr.Group():

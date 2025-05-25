@@ -111,7 +111,7 @@ class StealthBrowserContext(BrowserContext):
         """Get information about the StealthBrowserContext with Patchright details."""
         return {
             "type": "StealthBrowserContext",
-            "engine": "Patchright",
+            "engine": "Patchright", 
             "browser_support": "Chrome/Chromium only",
             "stealth_features": [
                 "Runtime.enable leak patched (isolated ExecutionContexts)",
@@ -125,7 +125,7 @@ class StealthBrowserContext(BrowserContext):
             ],
             "detection_bypass": [
                 "Cloudflare",
-                "Kasada",
+                "Kasada", 
                 "Akamai",
                 "Shape/F5",
                 "Bet365",

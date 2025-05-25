@@ -75,7 +75,7 @@ async def run_single_browser_task(
     browser_binary_path = browser_config.get("browser_binary_path", None)
     wss_url = browser_config.get("wss_url", None)
     cdp_url = browser_config.get("cdp_url", None)
-    disable_security = browser_config.get("disable_security", False)
+    browser_config.get("disable_security", False)
 
     bu_browser = None
     bu_browser_context = None
@@ -218,7 +218,6 @@ async def _run_browser_search_tool(
         f"[Browser Tool {task_id}] Running search for {len(queries)} queries: {queries}"
     )
 
-    results = []
     semaphore = asyncio.Semaphore(max_parallel_browsers)
 
     async def task_wrapper(query):
@@ -422,7 +421,7 @@ def _save_plan_to_md(plan: List[ResearchCategoryItem], output_dir: str):
     plan_file = os.path.join(output_dir, PLAN_FILENAME)
     try:
         with open(plan_file, "w", encoding="utf-8") as f:
-            f.write(f"# Research Plan\n\n")
+            f.write("# Research Plan\n\n")
             for cat_idx, category in enumerate(plan):
                 f.write(f"## {cat_idx + 1}. {category['category_name']}\n\n")
                 for task_idx, task in enumerate(category['tasks']):
@@ -753,7 +752,6 @@ async def research_execution_node(state: DeepResearchState) -> Dict[str, Any]:
             step_failed_tool_execution = any("Error:" in str(tr.content) for tr in tool_results)
             # Consider a task successful if a browser search was attempted and didn't immediately error out during call
             # The browser search itself returns status for each query.
-            browser_tool_attempted_successfully = "parallel_browser_search" in executed_tool_names and not step_failed_tool_execution
 
             if step_failed_tool_execution:
                 current_task["status"] = "failed"
@@ -835,7 +833,6 @@ async def synthesis_node(state: DeepResearchState) -> Dict[str, Any]:
     # Format search results nicely, maybe group by query or original plan step
     formatted_results = ""
     references = {}
-    ref_count = 1
     for i, result_entry in enumerate(search_results):
         query = result_entry.get("query", "Unknown Query")  # From parallel_browser_search
         tool_name = result_entry.get("tool_name")  # From other tools

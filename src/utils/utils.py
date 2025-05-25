@@ -3,10 +3,6 @@ import os
 import time
 from pathlib import Path
 from typing import Dict, Optional
-import requests
-import json
-import gradio as gr
-import uuid
 
 
 def encode_image(img_path):

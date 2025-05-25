@@ -72,7 +72,7 @@ def create_ui(theme_name="Ocean"):
                 elem_classes=["header-text"],
             )
 
-        with gr.Tabs() as tabs:
+        with gr.Tabs():
             with gr.TabItem("⚙️ Agent Settings"):
                 create_agent_settings_tab(ui_manager)
 
