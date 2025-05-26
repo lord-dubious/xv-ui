@@ -170,7 +170,14 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         """Wrapper for handle_clear."""
         import asyncio
 
-        asyncio.create_task(close_browser(webui_manager))
+        task = asyncio.create_task(close_browser(webui_manager))
+
+        # Add error handling for the async task
+        def handle_error(task):
+            if task.exception():
+                logger.error(f"Error closing browser: {task.exception()}")
+
+        task.add_done_callback(handle_error)
 
     headless.change(fn=close_wrapper)
     keep_browser_open.change(fn=close_wrapper)
@@ -179,7 +186,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
 
     # Function to save a single browser setting to .env
     def save_browser_setting(setting_name, setting_value):
-        if not hasattr(webui_manager, 'save_browser_settings_to_env'):
+        if not hasattr(webui_manager, "save_browser_settings_to_env"):
             logger.warning("WebUI manager missing save_browser_settings_to_env method")
             return
         webui_manager.save_browser_settings_to_env(
