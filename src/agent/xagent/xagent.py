@@ -164,6 +164,7 @@ class XAgent:
 
             # Run the browser agent
             logger.info("🚀 Executing XAgent task with stealth capabilities...")
+            self.runner = asyncio.current_task()
             result = await browser_agent.run(max_steps=max_steps)
 
             # Process results
@@ -192,6 +193,7 @@ class XAgent:
             }
         finally:
             # Cleanup
+            self.runner = None  # Clear runner reference
             try:
                 if browser:
                     await browser.close()
