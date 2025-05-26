@@ -264,6 +264,11 @@ class XAgent:
             ],
         )
 
+        # Add user_data_dir to config if available
+        user_data_dir = self.browser_config.get("user_data_dir")
+        if user_data_dir:
+            config.user_data_dir = user_data_dir
+
         # Create StealthBrowser with proxy manager
         browser = StealthBrowser(config, self.proxy_manager)
         return browser
