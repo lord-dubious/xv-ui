@@ -1,3 +1,4 @@
+import html
 import json
 import logging
 import os
@@ -399,12 +400,16 @@ def _render_mcp_server_list_with_toggles(servers_config: dict) -> str:
         status_class = "mcp-status-enabled" if enabled else "mcp-status-disabled"
         status_indicator = f'<div class="mcp-status-indicator {status_class}"></div>'
 
+        # Escape user-provided data to prevent XSS
+        escaped_server_name = html.escape(server_name)
+        escaped_full_command = html.escape(full_command)
+
         # Toggle switch HTML (styled to match your design)
         toggle_class = "toggle-enabled" if enabled else "toggle-disabled"
         toggle_html = f"""
         <label class="mcp-toggle-switch">
             <input type="checkbox" {"checked" if enabled else ""}
-                   onchange="window.gradio_config.fn_index_toggle_mcp && window.gradio_config.fn_index_toggle_mcp('{server_name}', this.checked)">
+                   onchange="window.gradio_config.fn_index_toggle_mcp && window.gradio_config.fn_index_toggle_mcp('{escaped_server_name}', this.checked)">
             <span class="mcp-toggle-slider {toggle_class}"></span>
         </label>
         """
@@ -412,11 +417,11 @@ def _render_mcp_server_list_with_toggles(servers_config: dict) -> str:
         # Context menu (3-dot menu)
         menu_html = f"""
         <div class="mcp-context-menu">
-            <button class="mcp-menu-button" onclick="showMCPMenu('{server_name}')">⋯</button>
-            <div class="mcp-menu-dropdown" id="menu-{server_name}">
-                <a href="#" onclick="editMCPServer('{server_name}')">✏️ Edit</a>
-                <a href="#" onclick="copyMCPJSON('{server_name}')">📋 Copy JSON</a>
-                <a href="#" onclick="deleteMCPServer('{server_name}')">🗑️ Delete</a>
+            <button class="mcp-menu-button" onclick="showMCPMenu('{escaped_server_name}')">⋯</button>
+            <div class="mcp-menu-dropdown" id="menu-{escaped_server_name}">
+                <a href="#" onclick="editMCPServer('{escaped_server_name}')">✏️ Edit</a>
+                <a href="#" onclick="copyMCPJSON('{escaped_server_name}')">📋 Copy JSON</a>
+                <a href="#" onclick="deleteMCPServer('{escaped_server_name}')">🗑️ Delete</a>
             </div>
         </div>
         """
@@ -425,8 +430,8 @@ def _render_mcp_server_list_with_toggles(servers_config: dict) -> str:
         <div class="mcp-server-row">
             <div class="mcp-server-status">{status_indicator}</div>
             <div class="mcp-server-info">
-                <div class="mcp-server-name">{server_name}</div>
-                <div class="mcp-server-command">{full_command}</div>
+                <div class="mcp-server-name">{escaped_server_name}</div>
+                <div class="mcp-server-command">{escaped_full_command}</div>
             </div>
             <div class="mcp-server-toggle">{toggle_html}</div>
             <div class="mcp-server-menu">{menu_html}</div>
@@ -460,11 +465,15 @@ def _render_mcp_server_list_simple(servers_config: dict) -> str:
         status_class = "mcp-status-enabled" if enabled else "mcp-status-disabled"
         status_text = "✅ Enabled" if enabled else "❌ Disabled"
 
+        # Escape user-provided data to prevent XSS
+        escaped_server_name = html.escape(server_name)
+        escaped_full_command = html.escape(full_command)
+
         server_html = f"""
         <div class="mcp-server-card">
             <div class="mcp-server-info">
-                <div class="mcp-server-name">{server_name}</div>
-                <div class="mcp-server-command">{full_command}</div>
+                <div class="mcp-server-name">{escaped_server_name}</div>
+                <div class="mcp-server-command">{escaped_full_command}</div>
                 <div class="mcp-server-status {status_class}">{status_text}</div>
             </div>
             <div class="mcp-server-controls">
