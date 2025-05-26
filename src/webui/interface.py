@@ -5,7 +5,7 @@ from src.webui.components.browser_settings_tab import create_browser_settings_ta
 from src.webui.components.browser_use_agent_tab import create_browser_use_agent_tab
 from src.webui.components.deep_research_agent_tab import create_deep_research_agent_tab
 from src.webui.components.load_save_config_tab import create_load_save_config_tab
-from src.webui.components.xagent_tab import XAgentTab
+from src.webui.components.xagent_tab import create_xagent_tab
 from src.webui.webui_manager import WebuiManager
 
 theme_map = {
@@ -91,15 +91,8 @@ def create_ui(theme_name="Ocean"):
                 )
                 with gr.Tabs():
                     with gr.TabItem("🎭 XAgent (Stealth + Proxy)"):
-                        # Create XAgent tab with browser config
-                        browser_config = {
-                            "headless": False,
-                            "window_width": 1280,
-                            "window_height": 1100,
-                            "disable_security": False,
-                        }
-                        xagent_tab = XAgentTab(llm=None, browser_config=browser_config)
-                        xagent_tab.create_tab()
+                        # Create XAgent tab with new function
+                        create_xagent_tab(ui_manager)
 
                     with gr.TabItem("🔍 Deep Research"):
                         create_deep_research_agent_tab(ui_manager)

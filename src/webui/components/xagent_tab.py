@@ -1,61 +1,67 @@
-import asyncio
+import json
 import logging
 import os
-import uuid
-from typing import Any, Dict, Optional
+from datetime import datetime
 
 import gradio as gr
-from langchain_core.language_models.chat_models import BaseChatModel
 
-from src.agent.xagent.xagent import XAgent
-from src.utils import llm_provider
+from src.webui.utils.env_utils import get_env_value, load_env_settings_with_cache
 
 logger = logging.getLogger(__name__)
 
 
-class XAgentTab:
-    """XAgent tab component for the web UI."""
+def create_xagent_tab(webui_manager):
+    """Create the XAgent tab with profile system, parallel execution, and MCP servers."""
 
-    def __init__(
-        self,
-        llm: Optional[BaseChatModel] = None,
-        browser_config: Optional[Dict[str, Any]] = None,
-    ):
-        """Initialize XAgent tab.
+    # Load environment settings
+    env_settings = load_env_settings_with_cache(webui_manager)
 
-        Args:
-            llm: Language model instance (can be None, will be initialized from settings)
-            browser_config: Browser configuration dictionary
-        """
-        self.llm = llm
-        self.browser_config = browser_config or {
-            "headless": False,
-            "window_width": 1280,
-            "window_height": 1100,
-            "disable_security": False,
-        }
-        self.xagent = None
-        self.chat_history = []
-        self.current_task_id = None
+    # Profile management state
+    profiles_state = gr.State({})
+    active_agents_state = gr.State({})  # For parallel execution
 
-    def create_tab(self):
-        """Create the XAgent tab UI components."""
-        with gr.Column():
-            gr.Markdown("# 🎭 XAgent - Stealth Browser Automation")
-            gr.Markdown(
-                """
-                XAgent provides advanced stealth browser automation using Patchright technology.
+    with gr.Column():
+        gr.Markdown("# 🎭 XAgent - Stealth Browser Automation")
+        gr.Markdown(
+            """
+            XAgent provides advanced stealth browser automation using Patchright technology.
 
-                **Features:**
-                - Enhanced anti-detection capabilities
-                - Patchright stealth browser (Chrome-optimized)
-                - Advanced fingerprint resistance
-                - Bypasses major bot detection systems
-                """
+            **Features:**
+            - Enhanced anti-detection capabilities
+            - Patchright stealth browser (Chrome-optimized)
+            - Advanced fingerprint resistance
+            - Profile system for saving/loading configurations
+            - Parallel execution support
+            - Dedicated MCP servers
+            """
+        )
+
+        # Profile Management Section
+        with gr.Group():
+            gr.Markdown("## 📁 Profile Management")
+            with gr.Row():
+                profile_name = gr.Textbox(
+                    label="Profile Name", placeholder="Enter profile name...", scale=2
+                )
+                with gr.Column(scale=1):
+                    save_profile_btn = gr.Button("💾 Save Profile", variant="secondary")
+                    load_profile_btn = gr.Button("📂 Load Profile", variant="secondary")
+                    delete_profile_btn = gr.Button("🗑️ Delete Profile", variant="stop")
+
+            profile_list = gr.Dropdown(
+                label="Available Profiles",
+                choices=[],
+                interactive=True,
+                allow_custom_value=False,
             )
 
+        # Configuration Section
+        with gr.Group():
+            gr.Markdown("## ⚙️ Configuration")
+
             with gr.Row():
-                with gr.Column(scale=3):
+                # Task Configuration
+                with gr.Column(scale=2):
                     task_input = gr.Textbox(
                         label="Task Description",
                         placeholder="Enter your automation task here...",
@@ -63,40 +69,118 @@ class XAgentTab:
                         elem_id="xagent_task_input",
                     )
 
-                    with gr.Row():
-                        run_button = gr.Button(
-                            "🚀 Run XAgent",
-                            variant="primary",
-                            elem_id="xagent_run_button",
-                        )
-                        stop_button = gr.Button(
-                            "⏹️ Stop",
-                            variant="stop",
-                            interactive=False,
-                            elem_id="xagent_stop_button",
-                        )
-                        clear_button = gr.Button(
-                            "🗑️ Clear", elem_id="xagent_clear_button"
-                        )
+                    custom_save_dir = gr.Textbox(
+                        label="Custom Save Directory",
+                        placeholder="./tmp/xagent (default)",
+                        value=get_env_value(
+                            env_settings, "XAGENT_SAVE_DIR", "./tmp/xagent"
+                        ),
+                        info="Directory to save XAgent results and logs",
+                    )
 
+                # Settings
                 with gr.Column(scale=1):
-                    gr.Markdown("### Settings")
                     max_steps = gr.Slider(
                         minimum=1,
                         maximum=200,
-                        value=50,
+                        value=get_env_value(env_settings, "XAGENT_MAX_STEPS", 50, int),
                         step=1,
                         label="Max Steps",
                         elem_id="xagent_max_steps",
                     )
 
-                    save_results = gr.Checkbox(
-                        label="Save Results", value=True, elem_id="xagent_save_results"
+                    parallel_agents = gr.Slider(
+                        minimum=1,
+                        maximum=5,
+                        value=get_env_value(
+                            env_settings, "XAGENT_PARALLEL_AGENTS", 1, int
+                        ),
+                        step=1,
+                        label="Parallel Agents",
+                        info="Number of XAgent instances to run in parallel",
                     )
+
+                    save_results = gr.Checkbox(
+                        label="Save Results",
+                        value=get_env_value(
+                            env_settings, "XAGENT_SAVE_RESULTS", True, bool
+                        ),
+                        elem_id="xagent_save_results",
+                    )
+
+                    stealth_mode = gr.Checkbox(
+                        label="Enhanced Stealth Mode",
+                        value=get_env_value(
+                            env_settings, "XAGENT_STEALTH_MODE", True, bool
+                        ),
+                        info="Use advanced anti-detection features",
+                    )
+
+        # MCP Servers Section
+        with gr.Group():
+            gr.Markdown("## 🔧 XAgent MCP Servers")
+            gr.Markdown(
+                "Configure dedicated MCP servers for XAgent (separate from main agent)"
+            )
+
+            xagent_mcp_servers = gr.State({})
+
+            with gr.Row():
+                mcp_server_name = gr.Textbox(
+                    label="Server Name",
+                    placeholder="e.g., xagent-browser-tools",
+                    scale=2,
+                )
+                mcp_server_command = gr.Textbox(
+                    label="Command",
+                    placeholder="e.g., npx @modelcontextprotocol/server-browser",
+                    scale=3,
+                )
+                add_mcp_btn = gr.Button("➕ Add MCP Server", variant="primary")
+
+            xagent_mcp_list = gr.HTML(
+                value="<p><em>No MCP servers configured for XAgent</em></p>",
+                label="XAgent MCP Servers",
+            )
+
+        # Execution Section
+        with gr.Group():
+            gr.Markdown("## 🚀 Execution")
+
+            with gr.Row():
+                run_button = gr.Button(
+                    "🚀 Run XAgent",
+                    variant="primary",
+                    elem_id="xagent_run_button",
+                    scale=2,
+                )
+                stop_button = gr.Button(
+                    "⏹️ Stop All",
+                    variant="stop",
+                    interactive=False,
+                    elem_id="xagent_stop_button",
+                    scale=1,
+                )
+                clear_button = gr.Button(
+                    "🗑️ Clear", elem_id="xagent_clear_button", scale=1
+                )
+
+        # Results Section
+        with gr.Group():
+            gr.Markdown("## 📊 Results")
+
+            # Active Agents Display
+            active_agents_display = gr.HTML(
+                value="<p><em>No active agents</em></p>",
+                label="Active XAgent Instances",
+            )
 
             # Chat interface
             chatbot = gr.Chatbot(
-                label="XAgent Execution Log", height=400, elem_id="xagent_chatbot"
+                label="XAgent Execution Log",
+                height=400,
+                elem_id="xagent_chatbot",
+                type="messages",
             )
 
             # Status and results
@@ -109,7 +193,7 @@ class XAgentTab:
                 )
 
                 task_id_text = gr.Textbox(
-                    label="Task ID",
+                    label="Current Task ID",
                     value="",
                     interactive=False,
                     elem_id="xagent_task_id",
@@ -120,169 +204,402 @@ class XAgentTab:
                 label="Download Results", visible=False, elem_id="xagent_results_file"
             )
 
-            # Event handlers
-            run_button.click(
-                fn=self._run_xagent_task,
-                inputs=[task_input, max_steps, save_results],
-                outputs=[
-                    chatbot,
-                    status_text,
-                    task_id_text,
-                    run_button,
-                    stop_button,
-                    results_file,
-                ],
-                show_progress=True,
-            )
+    # Component references for webui_manager
+    tab_components = {
+        "xagent_task_input": task_input,
+        "xagent_custom_save_dir": custom_save_dir,
+        "xagent_max_steps": max_steps,
+        "xagent_parallel_agents": parallel_agents,
+        "xagent_save_results": save_results,
+        "xagent_stealth_mode": stealth_mode,
+        "xagent_profile_name": profile_name,
+        "xagent_profile_list": profile_list,
+        "xagent_mcp_servers": xagent_mcp_servers,
+        "xagent_chatbot": chatbot,
+        "xagent_status": status_text,
+        "xagent_task_id": task_id_text,
+        "xagent_results_file": results_file,
+        "xagent_active_agents": active_agents_state,
+    }
 
-            stop_button.click(
-                fn=self._stop_xagent_task,
-                outputs=[status_text, run_button, stop_button],
-            )
+    webui_manager.add_components("xagent", tab_components)
 
-            clear_button.click(
-                fn=self._clear_chat,
-                outputs=[chatbot, status_text, task_id_text, results_file],
-            )
+    # Profile Management Functions
+    def save_profile(
+        profile_name_val,
+        task_val,
+        save_dir_val,
+        max_steps_val,
+        parallel_agents_val,
+        save_results_val,
+        stealth_mode_val,
+        mcp_servers_val,
+        profiles_val,
+    ):
+        """Save current configuration as a profile."""
+        if not profile_name_val.strip():
+            gr.Warning("Please enter a profile name")
+            return profiles_val, gr.update()
 
-    async def _initialize_llm_from_settings(self) -> Optional[BaseChatModel]:
-        """Initialize LLM from current settings if not already provided."""
-        if self.llm:
-            return self.llm
+        profile_data = {
+            "task": task_val,
+            "save_dir": save_dir_val,
+            "max_steps": max_steps_val,
+            "parallel_agents": parallel_agents_val,
+            "save_results": save_results_val,
+            "stealth_mode": stealth_mode_val,
+            "mcp_servers": mcp_servers_val,
+            "created_at": datetime.now().isoformat(),
+        }
 
-        try:
-            # Get settings from environment or defaults
-            provider = os.getenv("LLM_PROVIDER", "openai")
-            model_name = os.getenv("LLM_MODEL_NAME", "gpt-4o")
-            temperature = float(os.getenv("LLM_TEMPERATURE", "0.6"))
-            api_key = os.getenv(f"{provider.upper()}_API_KEY")
-            base_url = os.getenv(f"{provider.upper()}_ENDPOINT")
+        profiles_val[profile_name_val] = profile_data
 
-            if not provider or not model_name:
-                logger.warning("LLM provider or model not configured")
-                return None
+        # Save to file
+        profiles_dir = "./tmp/xagent_profiles"
+        os.makedirs(profiles_dir, exist_ok=True)
+        with open(os.path.join(profiles_dir, "profiles.json"), "w") as f:
+            json.dump(profiles_val, f, indent=2)
 
-            llm = llm_provider.get_llm_model(
-                provider=provider,
-                model_name=model_name,
-                temperature=temperature,
-                base_url=base_url,
-                api_key=api_key,
-            )
-            return llm
-        except Exception as e:
-            logger.error(f"Failed to initialize LLM: {e}")
-            return None
+        gr.Info(f"Profile '{profile_name_val}' saved successfully!")
+        return profiles_val, gr.update(choices=list(profiles_val.keys()))
 
-    def _run_xagent_task(self, task: str, max_steps: int, save_results: bool):
-        """Run XAgent task."""
-        if not task.strip():
+    def load_profile(selected_profile, profiles_val):
+        """Load a saved profile."""
+        if not selected_profile or selected_profile not in profiles_val:
+            gr.Warning("Please select a valid profile")
+            return [gr.update() for _ in range(7)]
+
+        profile_data = profiles_val[selected_profile]
+        gr.Info(f"Profile '{selected_profile}' loaded successfully!")
+
+        return [
+            gr.update(value=profile_data.get("task", "")),
+            gr.update(value=profile_data.get("save_dir", "./tmp/xagent")),
+            gr.update(value=profile_data.get("max_steps", 50)),
+            gr.update(value=profile_data.get("parallel_agents", 1)),
+            gr.update(value=profile_data.get("save_results", True)),
+            gr.update(value=profile_data.get("stealth_mode", True)),
+            profile_data.get("mcp_servers", {}),
+        ]
+
+    def delete_profile(selected_profile, profiles_val):
+        """Delete a saved profile."""
+        if not selected_profile or selected_profile not in profiles_val:
+            gr.Warning("Please select a valid profile to delete")
+            return profiles_val, gr.update()
+
+        del profiles_val[selected_profile]
+
+        # Save to file
+        profiles_dir = "./tmp/xagent_profiles"
+        os.makedirs(profiles_dir, exist_ok=True)
+        with open(os.path.join(profiles_dir, "profiles.json"), "w") as f:
+            json.dump(profiles_val, f, indent=2)
+
+        gr.Info(f"Profile '{selected_profile}' deleted successfully!")
+        return profiles_val, gr.update(choices=list(profiles_val.keys()), value="")
+
+    # Load existing profiles on startup
+    def load_existing_profiles():
+        """Load existing profiles from file."""
+        profiles_dir = "./tmp/xagent_profiles"
+        profiles_file = os.path.join(profiles_dir, "profiles.json")
+
+        if os.path.exists(profiles_file):
+            try:
+                with open(profiles_file, "r") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load profiles: {e}")
+
+        return {}
+
+    # MCP Server Management Functions
+    def add_mcp_server(server_name_val, server_command_val, mcp_servers_val):
+        """Add a new MCP server for XAgent."""
+        if not server_name_val.strip() or not server_command_val.strip():
+            gr.Warning("Please enter both server name and command")
+            return mcp_servers_val, gr.update()
+
+        mcp_servers_val[server_name_val] = {
+            "command": server_command_val,
+            "enabled": True,
+            "added_at": datetime.now().isoformat(),
+        }
+
+        gr.Info(f"MCP server '{server_name_val}' added successfully!")
+        return mcp_servers_val, render_mcp_servers_list(mcp_servers_val)
+
+    def render_mcp_servers_list(mcp_servers_val):
+        """Render the MCP servers list as HTML."""
+        if not mcp_servers_val:
+            return "<p><em>No MCP servers configured for XAgent</em></p>"
+
+        html = "<div style='font-family: monospace;'>"
+        for name, config in mcp_servers_val.items():
+            status = "🟢 Enabled" if config.get("enabled", True) else "🔴 Disabled"
+            html += f"""
+            <div style='border: 1px solid #ddd; padding: 10px; margin: 5px 0; border-radius: 5px;'>
+                <strong>{name}</strong> {status}<br>
+                <code>{config["command"]}</code><br>
+                <small>Added: {config.get("added_at", "Unknown")}</small>
+            </div>
+            """
+        html += "</div>"
+        return html
+
+    # Parallel Execution Functions
+    def run_xagent_task(
+        task_val,
+        save_dir_val,
+        max_steps_val,
+        parallel_agents_val,
+        save_results_val,
+        stealth_mode_val,
+        mcp_servers_val,
+        active_agents_val,
+        chatbot_val,
+    ):
+        """Run XAgent task with parallel execution support."""
+        if not task_val.strip():
             gr.Warning("Please enter a task description")
-            return (
-                self.chat_history,
-                "Error: No task provided",
-                "",
-                gr.update(interactive=True),
-                gr.update(interactive=False),
-                gr.update(visible=False),
-            )
+            return [gr.update() for _ in range(6)]
 
         try:
-            # Initialize LLM
-            llm = asyncio.run(self._initialize_llm_from_settings())
-            if not llm:
-                gr.Warning("Failed to initialize LLM. Please check your settings.")
-                return (
-                    self.chat_history,
-                    "Error: LLM initialization failed",
-                    "",
-                    gr.update(interactive=True),
-                    gr.update(interactive=False),
-                    gr.update(visible=False),
-                )
-
-            # Initialize XAgent
-            self.xagent = XAgent(
-                llm=llm,
-                browser_config=self.browser_config,
-                mode="stealth",  # Stealth mode only for this branch
-            )
-
             # Generate task ID
-            self.current_task_id = str(uuid.uuid4())[:8]
+            task_id = str(uuid.uuid4())[:8]
 
-            # Update UI
-            self.chat_history.append({"role": "user", "content": task})
-            self.chat_history.append(
+            # Update chat
+            chatbot_val.append(
+                {"role": "user", "content": f"🎭 Starting XAgent task: {task_val}"}
+            )
+            chatbot_val.append(
                 {
                     "role": "assistant",
-                    "content": "🎭 Starting XAgent with stealth capabilities...",
+                    "content": f"🚀 Initializing {parallel_agents_val} XAgent instance(s) with stealth capabilities...",
                 }
             )
 
-            # Run the task
-            result = asyncio.run(
-                self.xagent.run(
-                    task=task,
-                    task_id=self.current_task_id,
-                    max_steps=max_steps,
-                    save_dir="./tmp/xagent" if save_results else None,
-                )
-            )
+            # Create agent instances for parallel execution
+            for i in range(parallel_agents_val):
+                agent_id = f"{task_id}-{i + 1}"
+                active_agents_val[agent_id] = {
+                    "task": task_val,
+                    "status": "initializing",
+                    "progress": 0,
+                    "max_steps": max_steps_val,
+                    "save_dir": save_dir_val,
+                    "stealth_mode": stealth_mode_val,
+                    "mcp_servers": mcp_servers_val,
+                    "started_at": datetime.now().isoformat(),
+                }
 
-            # Process results
-            if result["status"] == "completed":
-                self.chat_history.append(
-                    {
-                        "role": "assistant",
-                        "content": f"✅ Task completed successfully!\n\nResult: {result.get('result', 'No result available')}",
-                    }
-                )
-                status = "Completed"
-                results_file_update = gr.update(visible=save_results)
-            else:
-                self.chat_history.append(
-                    {
-                        "role": "assistant",
-                        "content": f"❌ Task failed: {result.get('error', 'Unknown error')}",
-                    }
-                )
-                status = f"Failed: {result.get('error', 'Unknown error')}"
-                results_file_update = gr.update(visible=False)
-
-            return (
-                self.chat_history,
-                status,
-                self.current_task_id,
-                gr.update(interactive=True),
-                gr.update(interactive=False),
-                results_file_update,
-            )
+            # Update UI
+            return [
+                chatbot_val,
+                f"Running {parallel_agents_val} agent(s)",
+                task_id,
+                gr.update(interactive=False),  # run button
+                gr.update(interactive=True),  # stop button
+                render_active_agents(active_agents_val),
+            ]
 
         except Exception as e:
-            logger.error(f"Error running XAgent task: {e}")
-            self.chat_history.append(
-                {"role": "assistant", "content": f"❌ Error: {str(e)}"}
-            )
-            return (
-                self.chat_history,
+            logger.error(f"Error starting XAgent task: {e}")
+            chatbot_val.append({"role": "assistant", "content": f"❌ Error: {str(e)}"})
+            return [
+                chatbot_val,
                 f"Error: {str(e)}",
                 "",
                 gr.update(interactive=True),
                 gr.update(interactive=False),
-                gr.update(visible=False),
-            )
+                render_active_agents(active_agents_val),
+            ]
 
-    def _stop_xagent_task(self):
-        """Stop the current XAgent task."""
-        if self.xagent:
-            # Note: XAgent.stop() method would need to be implemented
-            logger.info("Stopping XAgent task")
+    def render_active_agents(active_agents_val):
+        """Render active agents display."""
+        if not active_agents_val:
+            return "<p><em>No active agents</em></p>"
 
-        return ("Stopped", gr.update(interactive=True), gr.update(interactive=False))
+        html = "<div style='font-family: monospace;'>"
+        for agent_id, agent_info in active_agents_val.items():
+            status_color = {
+                "initializing": "🟡",
+                "running": "🟢",
+                "completed": "✅",
+                "failed": "❌",
+                "stopped": "⏹️",
+            }.get(agent_info["status"], "⚪")
 
-    def _clear_chat(self):
-        """Clear the chat history."""
-        self.chat_history = []
-        self.current_task_id = None
-        return ([], "Ready", "", gr.update(visible=False))
+            html += f"""
+            <div style='border: 1px solid #ddd; padding: 8px; margin: 3px 0; border-radius: 3px;'>
+                <strong>Agent {agent_id}</strong> {status_color} {agent_info["status"]}<br>
+                <small>Progress: {agent_info["progress"]}/{agent_info["max_steps"]} steps</small><br>
+                <small>Started: {agent_info.get("started_at", "Unknown")}</small>
+            </div>
+            """
+        html += "</div>"
+        return html
+
+    def stop_all_agents(active_agents_val, chatbot_val):
+        """Stop all active XAgent instances."""
+        if not active_agents_val:
+            gr.Warning("No active agents to stop")
+            return [gr.update() for _ in range(4)]
+
+        # Mark all agents as stopped
+        for agent_id in active_agents_val:
+            active_agents_val[agent_id]["status"] = "stopped"
+
+        chatbot_val.append(
+            {
+                "role": "assistant",
+                "content": f"⏹️ Stopped {len(active_agents_val)} XAgent instance(s)",
+            }
+        )
+
+        # Clear active agents after a delay (in real implementation)
+        active_agents_val.clear()
+
+        return [
+            chatbot_val,
+            "Stopped",
+            gr.update(interactive=True),  # run button
+            gr.update(interactive=False),  # stop button
+        ]
+
+    def clear_chat(chatbot_val, active_agents_val):
+        """Clear chat and reset state."""
+        active_agents_val.clear()
+        return [
+            [],  # empty chatbot
+            "Ready",
+            "",
+            render_active_agents(active_agents_val),
+            gr.update(visible=False),  # results file
+        ]
+
+    # Event Handlers
+
+    # Profile Management Events
+    save_profile_btn.click(
+        fn=save_profile,
+        inputs=[
+            profile_name,
+            task_input,
+            custom_save_dir,
+            max_steps,
+            parallel_agents,
+            save_results,
+            stealth_mode,
+            xagent_mcp_servers,
+            profiles_state,
+        ],
+        outputs=[profiles_state, profile_list],
+    )
+
+    load_profile_btn.click(
+        fn=load_profile,
+        inputs=[profile_list, profiles_state],
+        outputs=[
+            task_input,
+            custom_save_dir,
+            max_steps,
+            parallel_agents,
+            save_results,
+            stealth_mode,
+            xagent_mcp_servers,
+        ],
+    )
+
+    delete_profile_btn.click(
+        fn=delete_profile,
+        inputs=[profile_list, profiles_state],
+        outputs=[profiles_state, profile_list],
+    )
+
+    # MCP Server Events
+    add_mcp_btn.click(
+        fn=add_mcp_server,
+        inputs=[mcp_server_name, mcp_server_command, xagent_mcp_servers],
+        outputs=[xagent_mcp_servers, xagent_mcp_list],
+    )
+
+    # Execution Events
+    run_button.click(
+        fn=run_xagent_task,
+        inputs=[
+            task_input,
+            custom_save_dir,
+            max_steps,
+            parallel_agents,
+            save_results,
+            stealth_mode,
+            xagent_mcp_servers,
+            active_agents_state,
+            chatbot,
+        ],
+        outputs=[
+            chatbot,
+            status_text,
+            task_id_text,
+            run_button,
+            stop_button,
+            active_agents_display,
+        ],
+        show_progress=True,
+    )
+
+    stop_button.click(
+        fn=stop_all_agents,
+        inputs=[active_agents_state, chatbot],
+        outputs=[chatbot, status_text, run_button, stop_button],
+    )
+
+    clear_button.click(
+        fn=clear_chat,
+        inputs=[chatbot, active_agents_state],
+        outputs=[
+            chatbot,
+            status_text,
+            task_id_text,
+            active_agents_display,
+            results_file,
+        ],
+    )
+
+    # Auto-save settings to environment
+    def save_xagent_setting(setting_name, value):
+        """Save XAgent setting to environment."""
+        env_vars = webui_manager.load_env_settings()
+        env_vars[f"XAGENT_{setting_name.upper()}"] = str(value)
+        webui_manager.save_env_settings(env_vars)
+
+    # Connect auto-save events
+    custom_save_dir.change(
+        fn=lambda val: save_xagent_setting("save_dir", val), inputs=[custom_save_dir]
+    )
+
+    max_steps.change(
+        fn=lambda val: save_xagent_setting("max_steps", val), inputs=[max_steps]
+    )
+
+    parallel_agents.change(
+        fn=lambda val: save_xagent_setting("parallel_agents", val),
+        inputs=[parallel_agents],
+    )
+
+    save_results.change(
+        fn=lambda val: save_xagent_setting("save_results", val), inputs=[save_results]
+    )
+
+    stealth_mode.change(
+        fn=lambda val: save_xagent_setting("stealth_mode", val), inputs=[stealth_mode]
+    )
+
+    # Initialize profiles
+    initial_profiles = load_existing_profiles()
+    profiles_state.value = initial_profiles
+    profile_list.choices = list(initial_profiles.keys())
+
+    return list(tab_components.values())

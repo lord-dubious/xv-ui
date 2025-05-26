@@ -1081,15 +1081,26 @@ def create_browser_use_agent_tab(webui_manager: WebuiManager):
         "browser_use_agent", tab_components
     )  # Use "browser_use_agent" as tab_name prefix
 
-    all_managed_components = set(
-        webui_manager.get_components()
-    )  # Get all components known to manager
+    # Filter out non-input components (Groups, HTML, etc.) to avoid InvalidComponentError
+    all_components = webui_manager.get_components()
+    valid_input_components = []
+    for comp in all_components:
+        # Only include components that can be used as inputs
+        if hasattr(comp, 'value') and not isinstance(comp, (gr.Group, gr.HTML, gr.Markdown, gr.File)):
+            valid_input_components.append(comp)
+
     run_tab_outputs = list(tab_components.values())
 
     async def submit_wrapper(
-        components_dict: Dict[Component, Any],
+        *args,
     ) -> AsyncGenerator[Dict[Component, Any], None]:
         """Wrapper for handle_submit that yields its results."""
+        # Convert args to components_dict
+        components_dict = {}
+        for i, comp in enumerate(valid_input_components):
+            if i < len(args):
+                components_dict[comp] = args[i]
+
         async for update in handle_submit(webui_manager, components_dict):
             yield update
 
@@ -1110,10 +1121,10 @@ def create_browser_use_agent_tab(webui_manager: WebuiManager):
 
     # --- Connect Event Handlers using the Wrappers --
     run_button.click(
-        fn=submit_wrapper, inputs=all_managed_components, outputs=run_tab_outputs
+        fn=submit_wrapper, inputs=valid_input_components, outputs=run_tab_outputs
     )
     user_input.submit(
-        fn=submit_wrapper, inputs=all_managed_components, outputs=run_tab_outputs
+        fn=submit_wrapper, inputs=valid_input_components, outputs=run_tab_outputs
     )
     stop_button.click(fn=stop_wrapper, inputs=None, outputs=run_tab_outputs)
     pause_resume_button.click(
