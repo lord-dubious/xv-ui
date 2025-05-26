@@ -139,11 +139,6 @@ class StealthBrowser(Browser):
             f"🎭 Launching Patchright browser with {len(chrome_args)} stealth arguments"
         )
 
-        # Get user data directory from config or use default
-        user_data_dir = (
-            getattr(self.config, "user_data_dir", None) or "./tmp/xagent/chrome_profile"
-        )
-
         # Patchright Best Practice: Use launch_persistent_context for maximum stealth
         launch_options = {
             "channel": "chrome",  # Use Google Chrome (not chromium) for best stealth
@@ -152,7 +147,9 @@ class StealthBrowser(Browser):
             "args": args[self.config.browser_class],
             "handle_sigterm": False,
             "handle_sigint": False,
-            "user_data_dir": user_data_dir,  # Configurable persistent context for stealth
+            "user_data_dir": getattr(
+                self.config, "user_data_dir", "./tmp/xagent/chrome_profile"
+            ),  # Configurable persistent context for stealth
         }
 
         # Add proxy configuration (commented out for this branch)
