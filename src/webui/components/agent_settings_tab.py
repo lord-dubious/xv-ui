@@ -1353,70 +1353,11 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
     # - Future edit functionality can be added through the same pattern
 
     # Add event handlers for individual server components
-    def setup_server_events(server_components, servers_state):
-        """Setup event handlers for individual server toggle switches and menus."""
-
-        def create_toggle_handler(server_name):
-            def toggle_handler(enabled):
-                logger.info(
-                    f"🔧 MCP: Toggle {server_name} to {'enabled' if enabled else 'disabled'}"
-                )
-                current_servers = servers_state.value
-                if server_name in current_servers:
-                    current_servers[server_name]["enabled"] = enabled
-                    save_mcp_servers(current_servers)
-
-                    # Update status indicator
-                    status_color = "#4CAF50" if enabled else "#f44336"
-                    status_html = f'<div style="width: 12px; height: 12px; border-radius: 50%; background-color: {status_color}; margin: 4px;"></div>'
-
-                    return current_servers, status_html
-                return current_servers, ""
-
-            return toggle_handler
-
-        def create_menu_handler(server_name):
-            def menu_handler(action):
-                logger.info(
-                    f"🔧 MCP: Menu action '{action}' for server '{server_name}'"
-                )
-                current_servers = servers_state.value
-
-                if action == "🗑️ Delete":
-                    if server_name in current_servers:
-                        del current_servers[server_name]
-                        save_mcp_servers(current_servers)
-                        logger.info(f"🔧 MCP: Deleted server '{server_name}'")
-                elif action == "📋 Copy JSON":
-                    json_data = get_server_json(current_servers, server_name)
-                    logger.info(
-                        f"🔧 MCP: Generated JSON for '{server_name}': {len(json_data)} chars"
-                    )
-                elif action == "✏️ Edit":
-                    logger.info(f"🔧 MCP: Edit requested for '{server_name}'")
-                    # TODO: Implement edit modal
-
-                return current_servers, ""  # Reset dropdown
-
-            return menu_handler
-
-        # Setup event handlers for each server
-        for server_name, components in server_components.items():
-            # Toggle switch handler
-            toggle_handler = create_toggle_handler(server_name)
-            components["toggle"].change(
-                toggle_handler,
-                inputs=[components["toggle"]],
-                outputs=[servers_state, components["status"]],
-            )
-
-            # Context menu handler
-            menu_handler = create_menu_handler(server_name)
-            components["menu"].change(
-                menu_handler,
-                inputs=[components["menu"]],
-                outputs=[servers_state, components["menu"]],
-            )
+    # NOTE: This function is currently disabled as it's not being called and was causing errors
+    # def setup_server_events(server_components, servers_state):
+    #     """Setup event handlers for individual server toggle switches and menus."""
+    #     # Function implementation commented out to prevent errors
+    #     pass
 
     # TODO: Setup individual server events after fixing scope issues
     # For now, we'll use the HTML-based approach with the add/import functionality working

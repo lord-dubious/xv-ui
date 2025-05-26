@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import uuid
@@ -173,7 +174,7 @@ class XAgentTab:
             logger.error(f"Failed to initialize LLM: {e}")
             return None
 
-    async def _run_xagent_task(self, task: str, max_steps: int, save_results: bool):
+    def _run_xagent_task(self, task: str, max_steps: int, save_results: bool):
         """Run XAgent task."""
         if not task.strip():
             gr.Warning("Please enter a task description")
@@ -188,7 +189,7 @@ class XAgentTab:
 
         try:
             # Initialize LLM
-            llm = await self._initialize_llm_from_settings()
+            llm = asyncio.run(self._initialize_llm_from_settings())
             if not llm:
                 gr.Warning("Failed to initialize LLM. Please check your settings.")
                 return (
@@ -220,11 +221,13 @@ class XAgentTab:
             )
 
             # Run the task
-            result = await self.xagent.run(
-                task=task,
-                task_id=self.current_task_id,
-                max_steps=max_steps,
-                save_dir="./tmp/xagent" if save_results else None,
+            result = asyncio.run(
+                self.xagent.run(
+                    task=task,
+                    task_id=self.current_task_id,
+                    max_steps=max_steps,
+                    save_dir="./tmp/xagent" if save_results else None,
+                )
             )
 
             # Process results

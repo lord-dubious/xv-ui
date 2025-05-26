@@ -109,7 +109,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
             )
     with gr.Group():
         with gr.Row():
-            save_recording_path = gr.Textbox(
+            recording_path_input = gr.Textbox(
                 label="Recording Path",
                 value=get_env_value(env_settings, "SAVE_RECORDING_PATH", ""),
                 placeholder="e.g. ./tmp/record_videos",
@@ -117,7 +117,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
                 interactive=True,
             )
 
-            save_trace_path = gr.Textbox(
+            trace_path_input = gr.Textbox(
                 label="Trace Path",
                 value=get_env_value(env_settings, "SAVE_TRACE_PATH", ""),
                 placeholder="e.g. ./tmp/traces",
@@ -126,7 +126,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
             )
 
         with gr.Row():
-            save_agent_history_path = gr.Textbox(
+            agent_history_path_input = gr.Textbox(
                 label="Agent History Save Path",
                 value=get_env_value(
                     env_settings, "SAVE_AGENT_HISTORY_PATH", "./tmp/agent_history"
@@ -134,7 +134,7 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
                 info="Specify the directory where agent history should be saved.",
                 interactive=True,
             )
-            save_download_path = gr.Textbox(
+            download_path_input = gr.Textbox(
                 label="Save Directory for browser downloads",
                 value=get_env_value(
                     env_settings, "SAVE_DOWNLOAD_PATH", "./tmp/downloads"
@@ -154,10 +154,10 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
             "keep_browser_open": keep_browser_open,
             "headless": headless,
             "disable_security": disable_security,
-            "save_recording_path": save_recording_path,
-            "save_trace_path": save_trace_path,
-            "save_agent_history_path": save_agent_history_path,
-            "save_download_path": save_download_path,
+            "save_recording_path": recording_path_input,
+            "save_trace_path": trace_path_input,
+            "save_agent_history_path": agent_history_path_input,
+            "save_download_path": download_path_input,
             "cdp_url": cdp_url,
             "wss_url": wss_url,
             "window_h": window_h,
@@ -166,14 +166,16 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
     )
     webui_manager.add_components("browser_settings", tab_components)
 
-    async def close_wrapper():
+    def close_wrapper():
         """Wrapper for handle_clear."""
-        await close_browser(webui_manager)
+        import asyncio
 
-    headless.change(close_wrapper)
-    keep_browser_open.change(close_wrapper)
-    disable_security.change(close_wrapper)
-    use_own_browser.change(close_wrapper)
+        asyncio.create_task(close_browser(webui_manager))
+
+    headless.change(fn=close_wrapper)
+    keep_browser_open.change(fn=close_wrapper)
+    disable_security.change(fn=close_wrapper)
+    use_own_browser.change(fn=close_wrapper)
 
     # Function to save a single browser setting to .env
     def save_browser_setting(setting_name, setting_value):
@@ -284,24 +286,24 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         inputs=[disable_security],
     )
 
-    save_recording_path.change(
+    recording_path_input.change(
         fn=save_recording_path,
-        inputs=[save_recording_path],
+        inputs=[recording_path_input],
     )
 
-    save_trace_path.change(
+    trace_path_input.change(
         fn=save_trace_path,
-        inputs=[save_trace_path],
+        inputs=[trace_path_input],
     )
 
-    save_agent_history_path.change(
+    agent_history_path_input.change(
         fn=save_agent_history_path,
-        inputs=[save_agent_history_path],
+        inputs=[agent_history_path_input],
     )
 
-    save_download_path.change(
+    download_path_input.change(
         fn=save_download_path,
-        inputs=[save_download_path],
+        inputs=[download_path_input],
     )
 
     wss_url.change(

@@ -86,7 +86,7 @@ def main():
         logger.info("\n🛑 Keyboard interrupt received. Shutting down...")
         signal_handler(signal.SIGINT, None)
     except Exception as e:
-        logger.error(f"❌ Error starting WebUI: {e}")
+        logger.error(f"❌ Error starting WebUI: {e}", exc_info=True)
         sys.exit(1)
 
 
