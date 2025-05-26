@@ -1398,6 +1398,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
     def save_planner_settings(
         model_name=None, temperature=None, use_vision=None, ollama_num_ctx=None
     ):
+        if not hasattr(webui_manager, "load_env_settings") or not hasattr(
+            webui_manager, "save_env_settings"
+        ):
+            logger.warning(
+                "WebUI manager missing required methods for saving planner settings"
+            )
+            return
         env_vars = webui_manager.load_env_settings()
         if model_name is not None:
             env_vars["PLANNER_LLM_MODEL_NAME"] = str(model_name)
@@ -1478,6 +1485,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         override_system_prompt=None,
         extend_system_prompt=None,
     ):
+        if not hasattr(webui_manager, "load_env_settings") or not hasattr(
+            webui_manager, "save_env_settings"
+        ):
+            logger.warning(
+                "WebUI manager missing required methods for saving main LLM settings"
+            )
+            return
         env_vars = webui_manager.load_env_settings()
         if model_name is not None:
             env_vars["LLM_MODEL_NAME"] = str(model_name)
@@ -1504,6 +1518,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
     # Connect change events to auto-save functions
     def save_llm_provider(provider):
         """Save LLM provider to environment variables"""
+        if not hasattr(webui_manager, "load_env_settings") or not hasattr(
+            webui_manager, "save_env_settings"
+        ):
+            logger.warning(
+                "WebUI manager missing required methods for saving LLM provider"
+            )
+            return
         env_vars = webui_manager.load_env_settings()
         env_vars["LLM_PROVIDER"] = str(provider)
         webui_manager.save_env_settings(env_vars)
@@ -1585,6 +1606,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
 
     def save_planner_llm_provider(provider):
         """Save Planner LLM provider to environment variables"""
+        if not hasattr(webui_manager, "load_env_settings") or not hasattr(
+            webui_manager, "save_env_settings"
+        ):
+            logger.warning(
+                "WebUI manager missing required methods for saving planner LLM provider"
+            )
+            return
         env_vars = webui_manager.load_env_settings()
         env_vars["PLANNER_LLM_PROVIDER"] = str(provider)
         webui_manager.save_env_settings(env_vars)
@@ -1662,6 +1690,13 @@ def create_agent_settings_tab(webui_manager: WebuiManager):
         random_unit=None,
     ):
         """Save delay settings to environment and invalidate agent cache"""
+        if not hasattr(webui_manager, "load_env_settings") or not hasattr(
+            webui_manager, "save_env_settings"
+        ):
+            logger.warning(
+                "WebUI manager missing required methods for saving delay settings"
+            )
+            return
         env_vars = webui_manager.load_env_settings()
 
         if enable_random is not None:

@@ -596,6 +596,9 @@ def create_xagent_tab(webui_manager):
     # Auto-save settings to environment
     def save_xagent_setting(setting_name, value):
         """Save XAgent setting to environment."""
+        if not hasattr(webui_manager, 'load_env_settings') or not hasattr(webui_manager, 'save_env_settings'):
+            logger.warning("WebUI manager missing required methods for saving settings")
+            return
         env_vars = webui_manager.load_env_settings()
         env_vars[f"XAGENT_{setting_name.upper()}"] = str(value)
         webui_manager.save_env_settings(env_vars)

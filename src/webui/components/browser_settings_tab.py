@@ -179,6 +179,9 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
 
     # Function to save a single browser setting to .env
     def save_browser_setting(setting_name, setting_value):
+        if not hasattr(webui_manager, 'save_browser_settings_to_env'):
+            logger.warning("WebUI manager missing save_browser_settings_to_env method")
+            return
         webui_manager.save_browser_settings_to_env(
             setting_name=setting_name, setting_value=setting_value
         )
