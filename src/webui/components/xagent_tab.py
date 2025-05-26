@@ -270,9 +270,14 @@ def create_xagent_tab(webui_manager):
 
         # Save to file
         profiles_dir = "./tmp/xagent_profiles"
-        os.makedirs(profiles_dir, exist_ok=True)
-        with open(os.path.join(profiles_dir, "profiles.json"), "w") as f:
-            json.dump(profiles_val, f, indent=2)
+        try:
+            os.makedirs(profiles_dir, exist_ok=True)
+            with open(os.path.join(profiles_dir, "profiles.json"), "w") as f:
+                json.dump(profiles_val, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save profile: {e}")
+            gr.Warning(f"Failed to save profile: {str(e)}")
+            return profiles_val, gr.update()
 
         gr.Info(f"Profile '{profile_name_val}' saved successfully!")
         return profiles_val, gr.update(choices=list(profiles_val.keys()))
@@ -309,9 +314,14 @@ def create_xagent_tab(webui_manager):
 
         # Save to file
         profiles_dir = "./tmp/xagent_profiles"
-        os.makedirs(profiles_dir, exist_ok=True)
-        with open(os.path.join(profiles_dir, "profiles.json"), "w") as f:
-            json.dump(profiles_val, f, indent=2)
+        try:
+            os.makedirs(profiles_dir, exist_ok=True)
+            with open(os.path.join(profiles_dir, "profiles.json"), "w") as f:
+                json.dump(profiles_val, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to delete profile: {e}")
+            gr.Warning(f"Failed to delete profile: {str(e)}")
+            return profiles_val, gr.update()
 
         gr.Info(f"Profile '{selected_profile}' deleted successfully!")
         return profiles_val, gr.update(choices=list(profiles_val.keys()), value="")
@@ -596,7 +606,9 @@ def create_xagent_tab(webui_manager):
     # Auto-save settings to environment
     def save_xagent_setting(setting_name, value):
         """Save XAgent setting to environment."""
-        if not hasattr(webui_manager, 'load_env_settings') or not hasattr(webui_manager, 'save_env_settings'):
+        if not hasattr(webui_manager, "load_env_settings") or not hasattr(
+            webui_manager, "save_env_settings"
+        ):
             logger.warning("WebUI manager missing required methods for saving settings")
             return
         env_vars = webui_manager.load_env_settings()

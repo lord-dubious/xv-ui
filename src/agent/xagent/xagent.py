@@ -288,7 +288,11 @@ class XAgent:
         import json
         import os
 
-        os.makedirs(save_dir, exist_ok=True)
+        try:
+            os.makedirs(save_dir, exist_ok=True)
+        except Exception as e:
+            logger.error(f"Failed to create save directory {save_dir}: {e}")
+            return
 
         result_file = os.path.join(save_dir, f"{self.current_task_id}_result.json")
 
@@ -305,10 +309,13 @@ class XAgent:
             ],
         }
 
-        with open(result_file, "w") as f:
-            json.dump(result_data, f, indent=2)
-
-        logger.info(f"📁 Results saved to: {result_file}")
+        try:
+            with open(result_file, "w") as f:
+                json.dump(result_data, f, indent=2)
+            logger.info(f"📁 Results saved to: {result_file}")
+        except Exception as e:
+            logger.error(f"Failed to save XAgent results: {e}")
+            # Don't raise exception to avoid breaking the task completion
 
     def _get_current_proxy_info(self) -> Optional[Dict[str, Any]]:
         """Get current proxy information."""
