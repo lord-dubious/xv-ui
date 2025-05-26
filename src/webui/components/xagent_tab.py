@@ -78,6 +78,17 @@ def create_xagent_tab(webui_manager):
                         info="Directory to save XAgent results and logs",
                     )
 
+                    browser_user_data_dir = gr.Textbox(
+                        label="Browser User Data Directory",
+                        placeholder="./tmp/xagent_browser_data (default)",
+                        value=get_env_value(
+                            env_settings,
+                            "XAGENT_BROWSER_USER_DATA",
+                            "./tmp/xagent_browser_data",
+                        ),
+                        info="Browser user data directory for persistent sessions, cookies, and settings per profile",
+                    )
+
                 # Settings
                 with gr.Column(scale=1):
                     max_steps = gr.Slider(
@@ -208,6 +219,7 @@ def create_xagent_tab(webui_manager):
     tab_components = {
         "xagent_task_input": task_input,
         "xagent_custom_save_dir": custom_save_dir,
+        "xagent_browser_user_data_dir": browser_user_data_dir,
         "xagent_max_steps": max_steps,
         "xagent_parallel_agents": parallel_agents,
         "xagent_save_results": save_results,
@@ -229,6 +241,7 @@ def create_xagent_tab(webui_manager):
         profile_name_val,
         task_val,
         save_dir_val,
+        browser_user_data_val,
         max_steps_val,
         parallel_agents_val,
         save_results_val,
@@ -244,6 +257,7 @@ def create_xagent_tab(webui_manager):
         profile_data = {
             "task": task_val,
             "save_dir": save_dir_val,
+            "browser_user_data": browser_user_data_val,
             "max_steps": max_steps_val,
             "parallel_agents": parallel_agents_val,
             "save_results": save_results_val,
@@ -267,7 +281,7 @@ def create_xagent_tab(webui_manager):
         """Load a saved profile."""
         if not selected_profile or selected_profile not in profiles_val:
             gr.Warning("Please select a valid profile")
-            return [gr.update() for _ in range(7)]
+            return [gr.update() for _ in range(8)]
 
         profile_data = profiles_val[selected_profile]
         gr.Info(f"Profile '{selected_profile}' loaded successfully!")
@@ -275,6 +289,9 @@ def create_xagent_tab(webui_manager):
         return [
             gr.update(value=profile_data.get("task", "")),
             gr.update(value=profile_data.get("save_dir", "./tmp/xagent")),
+            gr.update(
+                value=profile_data.get("browser_user_data", "./tmp/xagent_browser_data")
+            ),
             gr.update(value=profile_data.get("max_steps", 50)),
             gr.update(value=profile_data.get("parallel_agents", 1)),
             gr.update(value=profile_data.get("save_results", True)),
@@ -352,6 +369,7 @@ def create_xagent_tab(webui_manager):
     def run_xagent_task(
         task_val,
         save_dir_val,
+        browser_user_data_val,
         max_steps_val,
         parallel_agents_val,
         save_results_val,
@@ -383,12 +401,16 @@ def create_xagent_tab(webui_manager):
             # Create agent instances for parallel execution
             for i in range(parallel_agents_val):
                 agent_id = f"{task_id}-{i + 1}"
+                # Create unique browser user data directory for each agent instance
+                agent_browser_data = f"{browser_user_data_val}_{agent_id}"
+
                 active_agents_val[agent_id] = {
                     "task": task_val,
                     "status": "initializing",
                     "progress": 0,
                     "max_steps": max_steps_val,
                     "save_dir": save_dir_val,
+                    "browser_user_data": agent_browser_data,
                     "stealth_mode": stealth_mode_val,
                     "mcp_servers": mcp_servers_val,
                     "started_at": datetime.now().isoformat(),
@@ -488,6 +510,7 @@ def create_xagent_tab(webui_manager):
             profile_name,
             task_input,
             custom_save_dir,
+            browser_user_data_dir,
             max_steps,
             parallel_agents,
             save_results,
@@ -504,6 +527,7 @@ def create_xagent_tab(webui_manager):
         outputs=[
             task_input,
             custom_save_dir,
+            browser_user_data_dir,
             max_steps,
             parallel_agents,
             save_results,
@@ -531,6 +555,7 @@ def create_xagent_tab(webui_manager):
         inputs=[
             task_input,
             custom_save_dir,
+            browser_user_data_dir,
             max_steps,
             parallel_agents,
             save_results,
@@ -578,6 +603,11 @@ def create_xagent_tab(webui_manager):
     # Connect auto-save events
     custom_save_dir.change(
         fn=lambda val: save_xagent_setting("save_dir", val), inputs=[custom_save_dir]
+    )
+
+    browser_user_data_dir.change(
+        fn=lambda val: save_xagent_setting("browser_user_data", val),
+        inputs=[browser_user_data_dir],
     )
 
     max_steps.change(
