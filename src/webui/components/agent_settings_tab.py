@@ -541,14 +541,14 @@ def _create_llm_components(env_settings):
                 label="LLM Base URL",
                 value=get_env_value(env_settings, "LLM_BASE_URL", ""),
                 interactive=True,
-                visible=initial_llm_provider in ["openai", "anthropic", "ollama"],
+                info="API endpoint URL (if required)",
             )
             llm_api_key = gr.Textbox(
                 label="LLM API Key",
                 value=get_env_value(env_settings, "LLM_API_KEY", ""),
                 type="password",
                 interactive=True,
-                visible=initial_llm_provider in ["openai", "anthropic", "ollama"],
+                info="Your API key (auto-saved to .env)",
             )
 
     return (
@@ -631,31 +631,17 @@ def _create_planner_components(env_settings):
 
         with gr.Row():
             planner_llm_base_url = gr.Textbox(
-                label="Base URL",
-                value=(
-                    get_env_value(
-                        env_settings,
-                        f"{initial_planner_llm_provider.upper()}_ENDPOINT",
-                        "",
-                    )
-                    if initial_planner_llm_provider
-                    else ""
-                ),
+                label="Planner Base URL",
+                value=get_env_value(env_settings, "PLANNER_LLM_BASE_URL", ""),
                 info="API endpoint URL (if required)",
+                interactive=True,
             )
             planner_llm_api_key = gr.Textbox(
-                label="API Key",
+                label="Planner API Key",
                 type="password",
-                value=(
-                    get_env_value(
-                        env_settings,
-                        f"{initial_planner_llm_provider.upper()}_API_KEY",
-                        "",
-                    )
-                    if initial_planner_llm_provider
-                    else ""
-                ),
+                value=get_env_value(env_settings, "PLANNER_LLM_API_KEY", ""),
                 info="Your API key (auto-saved to .env)",
+                interactive=True,
             )
 
     return (
