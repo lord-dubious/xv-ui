@@ -53,9 +53,7 @@ async def test_mcp_client():
 
 
 async def test_controller_with_mcp():
-    import os
     from src.controller.custom_controller import CustomController
-    from browser_use.controller.registry.views import ActionModel
 
     mcp_server_config = {
         "mcpServers": {
@@ -92,7 +90,7 @@ async def test_controller_with_mcp():
     action_info = controller.registry.registry.actions[action_name]
     param_model = action_info.param_model
     print(param_model.model_json_schema())
-    params = {"command": f"python ./tmp/test.py"
+    params = {"command": "python ./tmp/test.py"
               }
     validated_params = param_model(**params)
     ActionModel_ = controller.registry.create_action_model()

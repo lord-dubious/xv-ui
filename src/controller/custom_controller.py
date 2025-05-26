@@ -1,31 +1,15 @@
-import pdb
 
-import pyperclip
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
 from browser_use.agent.views import ActionResult
 from browser_use.browser.context import BrowserContext
-from browser_use.controller.service import Controller, DoneAction
-from browser_use.controller.registry.service import Registry, RegisteredAction
-from main_content_extractor import MainContentExtractor
-from browser_use.controller.views import (
-    ClickElementAction,
-    DoneAction,
-    ExtractPageContentAction,
-    GoToUrlAction,
-    InputTextAction,
-    OpenTabAction,
-    ScrollAction,
-    SearchGoogleAction,
-    SendKeysAction,
-    SwitchTabAction,
-)
+from browser_use.controller.service import Controller
+from browser_use.controller.registry.service import RegisteredAction
 import logging
 import inspect
-import asyncio
 import os
 from langchain_core.language_models.chat_models import BaseChatModel
-from browser_use.agent.views import ActionModel, ActionResult
+from browser_use.agent.views import ActionModel
 
 from src.utils.mcp_client import create_tool_param_model, setup_mcp_client_and_tools
 
@@ -175,7 +159,7 @@ class CustomController(Controller):
                 logger.debug(
                     f"Registered {len(self.mcp_client.server_name_to_tools[server_name])} mcp tools for {server_name}")
         else:
-            logger.warning(f"MCP client not started.")
+            logger.warning("MCP client not started.")
 
     async def close_mcp_client(self):
         if self.mcp_client:

@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, List, Tuple
 
 
 def ensure_env_file_exists(env_path: str = '.env', example_env_path: str = '.env.example') -> bool:

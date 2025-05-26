@@ -1,17 +1,10 @@
-import asyncio
-import pdb
 
 from playwright.async_api import Browser as PlaywrightBrowser
 from playwright.async_api import (
-    BrowserContext as PlaywrightBrowserContext,
-)
-from playwright.async_api import (
     Playwright,
-    async_playwright,
 )
 from browser_use.browser.browser import Browser, IN_DOCKER
-from browser_use.browser.context import BrowserContext, BrowserContextConfig
-from playwright.async_api import BrowserContext as PlaywrightBrowserContext
+from browser_use.browser.context import BrowserContextConfig
 import logging
 
 from browser_use.browser.chrome import (
@@ -21,9 +14,7 @@ from browser_use.browser.chrome import (
     CHROME_DOCKER_ARGS,
     CHROME_HEADLESS_ARGS,
 )
-from browser_use.browser.context import BrowserContext, BrowserContextConfig
 from browser_use.browser.utils.screen_resolution import get_screen_resolution, get_window_adjustments
-from browser_use.utils import time_execution_async
 import socket
 
 from .custom_context import CustomBrowserContext
