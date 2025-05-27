@@ -18,9 +18,6 @@ from patchright.async_api import Browser as PatchrightBrowser
 from patchright.async_api import Playwright as PatchrightPlaywright
 from patchright.async_api import async_playwright
 
-# Import proxy manager (commented out for this branch)
-# from src.proxy.proxy_manager import ProxyManager
-
 if TYPE_CHECKING:
     from .stealth_context import StealthBrowserContext
 
@@ -41,11 +38,9 @@ class StealthBrowser(Browser):
     def __init__(
         self,
         config: Optional[BrowserConfig] = None,
-        proxy_manager: Optional[object] = None,  # Commented out for this branch
     ):
         """Initialize StealthBrowser with Patchright stealth capabilities."""
         super().__init__(config)
-        self.proxy_manager = None  # Commented out for this branch
 
         # Initialize Patchright-specific attributes with proper types
         self.playwright: Optional[PatchrightPlaywright] = None
@@ -54,6 +49,24 @@ class StealthBrowser(Browser):
         logger.info(
             "🎭 StealthBrowser initialized with Patchright stealth capabilities"
         )
+
+    def _get_user_data_dir(self) -> str:
+        """Get user data directory with proper fallback and directory creation."""
+        import os
+        import tempfile
+
+        # Check if user_data_dir is configured
+        if hasattr(self.config, "user_data_dir") and self.config.user_data_dir:
+            user_data_dir = self.config.user_data_dir
+        else:
+            # Use system temp directory as fallback
+            user_data_dir = os.path.join(
+                tempfile.gettempdir(), "xagent", "chrome_profile"
+            )
+
+        # Ensure directory exists
+        os.makedirs(user_data_dir, exist_ok=True)
+        return user_data_dir
 
     async def new_context(
         self, config: BrowserContextConfig | None = None
@@ -84,14 +97,25 @@ class StealthBrowser(Browser):
             "--no-default-browser-check",  # Skip default browser check (safe)
         ]
 
-        # Add remote debugging port if needed (check if port is available)
+        # Add remote debugging port if needed and port is available
         if (
             hasattr(self.config, "chrome_remote_debugging_port")
             and self.config.chrome_remote_debugging_port
         ):
-            chrome_args.append(
-                f"--remote-debugging-port={self.config.chrome_remote_debugging_port}"
-            )
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if (
+                    s.connect_ex(
+                        ("localhost", self.config.chrome_remote_debugging_port)
+                    )
+                    != 0
+                ):
+                    chrome_args.append(
+                        f"--remote-debugging-port={self.config.chrome_remote_debugging_port}"
+                    )
+                else:
+                    logger.warning(
+                        f"Remote debugging port {self.config.chrome_remote_debugging_port} is already in use, skipping"
+                    )
 
         # Add Docker args only if in Docker (minimal necessary)
         if IN_DOCKER:
@@ -108,24 +132,6 @@ class StealthBrowser(Browser):
             and self.config.extra_browser_args
         ):
             chrome_args.extend(self.config.extra_browser_args)
-
-        # Check if chrome remote debugging port is already taken
-        if (
-            hasattr(self.config, "chrome_remote_debugging_port")
-            and self.config.chrome_remote_debugging_port
-        ):
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                if (
-                    s.connect_ex(
-                        ("localhost", self.config.chrome_remote_debugging_port)
-                    )
-                    == 0
-                ):
-                    chrome_args = [
-                        arg
-                        for arg in chrome_args
-                        if not arg.startswith("--remote-debugging-port=")
-                    ]
 
         browser_class = getattr(playwright, self.config.browser_class)
         args = {
@@ -147,20 +153,8 @@ class StealthBrowser(Browser):
             "args": args[self.config.browser_class],
             "handle_sigterm": False,
             "handle_sigint": False,
-            "user_data_dir": getattr(
-                self.config, "user_data_dir", "./tmp/xagent/chrome_profile"
-            ),  # Configurable persistent context for stealth
+            "user_data_dir": self._get_user_data_dir(),  # Configurable persistent context for stealth
         }
-
-        # Add proxy configuration (commented out for this branch)
-        # if self.proxy_manager:
-        #     proxy_config = self.proxy_manager.get_proxy_for_browser()
-        #     if proxy_config:
-        #         launch_options["proxy"] = proxy_config
-        #         logger.info(f"🌐 Using proxy from ProxyManager: {proxy_config['server']}")
-        # elif self.config.proxy:
-        #     launch_options["proxy"] = self.config.proxy.model_dump()
-        #     logger.info("🌐 Using proxy from browser config")
 
         # Add executable path if specified
         if self.config.browser_binary_path:

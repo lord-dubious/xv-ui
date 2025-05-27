@@ -510,6 +510,7 @@ def create_xagent_tab(webui_manager):
 
     def clear_chat(chatbot_val, active_agents_val):
         """Clear chat and reset state."""
+        # Clear chat history and active agents
         active_agents_val.clear()
         return [
             [],  # empty chatbot

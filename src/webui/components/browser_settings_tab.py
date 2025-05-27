@@ -170,14 +170,27 @@ def create_browser_settings_tab(webui_manager: WebuiManager):
         """Wrapper for handle_clear."""
         import asyncio
 
-        task = asyncio.create_task(close_browser(webui_manager))
+        # Cancel any existing close task
+        if (
+            hasattr(webui_manager, "_close_task")
+            and webui_manager._close_task
+            and not webui_manager._close_task.done()
+        ):
+            webui_manager._close_task.cancel()
+
+        # Create and store new task
+        webui_manager._close_task = asyncio.create_task(close_browser(webui_manager))
 
         # Add error handling for the async task
         def handle_error(task):
-            if task.exception():
-                logger.error(f"Error closing browser: {task.exception()}")
+            try:
+                task.result()  # This will raise any exception from the task
+            except asyncio.CancelledError:
+                logger.debug("Browser close task was cancelled")
+            except Exception as e:
+                logger.error(f"Error closing browser: {e}")
 
-        task.add_done_callback(handle_error)
+        webui_manager._close_task.add_done_callback(handle_error)
 
     headless.change(fn=close_wrapper)
     keep_browser_open.change(fn=close_wrapper)
