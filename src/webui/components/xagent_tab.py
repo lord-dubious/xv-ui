@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import uuid
 from datetime import datetime
 
 import gradio as gr
@@ -21,198 +22,210 @@ def create_xagent_tab(webui_manager):
     active_agents_state = gr.State({})  # For parallel execution
 
     with gr.Column():
-        gr.Markdown("# 🎭 XAgent - Stealth Browser Automation")
-        gr.Markdown(
-            """
-            XAgent provides advanced stealth browser automation using Patchright technology.
-
-            **Features:**
-            - Enhanced anti-detection capabilities
-            - Patchright stealth browser (Chrome-optimized)
-            - Advanced fingerprint resistance
-            - Profile system for saving/loading configurations
-            - Parallel execution support
-            - Dedicated MCP servers
-            """
-        )
-
-        # Profile Management Section
-        with gr.Group():
-            gr.Markdown("## 📁 Profile Management")
-            with gr.Row():
-                profile_name = gr.Textbox(
-                    label="Profile Name", placeholder="Enter profile name...", scale=2
+        # Header Section
+        with gr.Row():
+            with gr.Column(scale=3):
+                gr.Markdown("# 🎭 XAgent - Advanced Browser Automation")
+                gr.Markdown(
+                    "**Stealth browser automation powered by Patchright** • Anti-detection • Chrome-optimized • Profile management"
                 )
-                with gr.Column(scale=1):
-                    save_profile_btn = gr.Button("💾 Save Profile", variant="secondary")
-                    load_profile_btn = gr.Button("📂 Load Profile", variant="secondary")
-                    delete_profile_btn = gr.Button("🗑️ Delete Profile", variant="stop")
+            with gr.Column(scale=1):
+                gr.Markdown(
+                    """
+                    **🛡️ Built-in Stealth Features:**
+                    • Runtime leak protection
+                    • Fingerprint resistance
+                    • Bot detection bypass
+                    • Persistent browser sessions
+                    """
+                )
 
-            profile_list = gr.Dropdown(
-                label="Available Profiles",
-                choices=[],
-                interactive=True,
-                allow_custom_value=False,
-            )
+        # Main Configuration Section
+        with gr.Row():
+            # Left Column - Task & Execution
+            with gr.Column(scale=2):
+                with gr.Group():
+                    gr.Markdown("### 🎯 Task Configuration")
 
-        # Configuration Section
-        with gr.Group():
-            gr.Markdown("## ⚙️ Configuration")
-
-            with gr.Row():
-                # Task Configuration
-                with gr.Column(scale=2):
                     task_input = gr.Textbox(
                         label="Task Description",
-                        placeholder="Enter your automation task here...",
-                        lines=3,
+                        placeholder="Describe what you want XAgent to do...",
+                        lines=4,
                         elem_id="xagent_task_input",
                     )
 
+                    with gr.Row():
+                        max_steps = gr.Slider(
+                            minimum=1,
+                            maximum=200,
+                            value=get_env_value(
+                                env_settings, "XAGENT_MAX_STEPS", 50, int
+                            ),
+                            step=1,
+                            label="Max Steps",
+                            elem_id="xagent_max_steps",
+                        )
+
+                        parallel_agents = gr.Slider(
+                            minimum=1,
+                            maximum=5,
+                            value=get_env_value(
+                                env_settings, "XAGENT_PARALLEL_AGENTS", 1, int
+                            ),
+                            step=1,
+                            label="Parallel Agents",
+                        )
+
+                with gr.Group():
+                    gr.Markdown("### 🚀 Execution Controls")
+
+                    with gr.Row():
+                        run_button = gr.Button(
+                            "🚀 Start XAgent",
+                            variant="primary",
+                            elem_id="xagent_run_button",
+                            scale=2,
+                        )
+                        stop_button = gr.Button(
+                            "⏹️ Stop All",
+                            variant="stop",
+                            interactive=False,
+                            elem_id="xagent_stop_button",
+                            scale=1,
+                        )
+                        clear_button = gr.Button(
+                            "🗑️ Clear", elem_id="xagent_clear_button", scale=1
+                        )
+
+            # Right Column - Settings & Profiles
+            with gr.Column(scale=1):
+                with gr.Group():
+                    gr.Markdown("### ⚙️ Settings")
+
+                    save_results = gr.Checkbox(
+                        label="💾 Save Results",
+                        value=get_env_value(
+                            env_settings, "XAGENT_SAVE_RESULTS", True, bool
+                        ),
+                        elem_id="xagent_save_results",
+                        info="Save execution logs and results to files",
+                    )
+
                     custom_save_dir = gr.Textbox(
-                        label="Custom Save Directory",
-                        placeholder="./tmp/xagent (default)",
+                        label="Save Directory",
+                        placeholder="./tmp/xagent",
                         value=get_env_value(
                             env_settings, "XAGENT_SAVE_DIR", "./tmp/xagent"
                         ),
-                        info="Directory to save XAgent results and logs",
+                        info="Directory for results and logs",
                     )
 
                     browser_user_data_dir = gr.Textbox(
-                        label="Browser User Data Directory",
-                        placeholder="./tmp/xagent_browser_data (default)",
+                        label="Browser Profile Directory",
+                        placeholder="./tmp/xagent_browser_data",
                         value=get_env_value(
                             env_settings,
                             "XAGENT_BROWSER_USER_DATA",
                             "./tmp/xagent_browser_data",
                         ),
-                        info="Browser user data directory for persistent sessions, cookies, and settings per profile",
+                        info="Browser user data for persistent sessions",
                     )
 
-                # Settings
-                with gr.Column(scale=1):
-                    max_steps = gr.Slider(
-                        minimum=1,
-                        maximum=200,
-                        value=get_env_value(env_settings, "XAGENT_MAX_STEPS", 50, int),
-                        step=1,
-                        label="Max Steps",
-                        elem_id="xagent_max_steps",
+                with gr.Group():
+                    gr.Markdown("### 📁 Profile Management")
+
+                    profile_list = gr.Dropdown(
+                        label="Saved Profiles",
+                        choices=[],
+                        interactive=True,
+                        allow_custom_value=False,
+                        info="Load saved configurations",
                     )
 
-                    parallel_agents = gr.Slider(
-                        minimum=1,
-                        maximum=5,
-                        value=get_env_value(
-                            env_settings, "XAGENT_PARALLEL_AGENTS", 1, int
-                        ),
-                        step=1,
-                        label="Parallel Agents",
-                        info="Number of XAgent instances to run in parallel",
+                    profile_name = gr.Textbox(
+                        label="Profile Name",
+                        placeholder="Enter name to save current config...",
                     )
 
-                    save_results = gr.Checkbox(
-                        label="Save Results",
-                        value=get_env_value(
-                            env_settings, "XAGENT_SAVE_RESULTS", True, bool
-                        ),
-                        elem_id="xagent_save_results",
-                    )
+                    with gr.Row():
+                        save_profile_btn = gr.Button(
+                            "💾 Save", variant="secondary", scale=1
+                        )
+                        load_profile_btn = gr.Button(
+                            "📂 Load", variant="secondary", scale=1
+                        )
+                        delete_profile_btn = gr.Button(
+                            "🗑️ Delete", variant="stop", scale=1
+                        )
 
-                    stealth_mode = gr.Checkbox(
-                        label="Enhanced Stealth Mode",
-                        value=get_env_value(
-                            env_settings, "XAGENT_STEALTH_MODE", True, bool
-                        ),
-                        info="Use advanced anti-detection features",
-                    )
-
-        # MCP Servers Section
+        # MCP Servers Section (Collapsible)
         with gr.Group():
-            gr.Markdown("## 🔧 XAgent MCP Servers")
-            gr.Markdown(
-                "Configure dedicated MCP servers for XAgent (separate from main agent)"
-            )
+            with gr.Accordion("🔧 MCP Servers (Optional)", open=False):
+                gr.Markdown("Configure dedicated MCP servers for XAgent capabilities")
 
-            xagent_mcp_servers = gr.State({})
+                xagent_mcp_servers = gr.State({})
 
-            with gr.Row():
-                mcp_server_name = gr.Textbox(
-                    label="Server Name",
-                    placeholder="e.g., xagent-browser-tools",
-                    scale=2,
+                with gr.Row():
+                    mcp_server_name = gr.Textbox(
+                        label="Server Name",
+                        placeholder="e.g., xagent-browser-tools",
+                        scale=2,
+                    )
+                    mcp_server_command = gr.Textbox(
+                        label="Command",
+                        placeholder="e.g., npx @modelcontextprotocol/server-browser",
+                        scale=3,
+                    )
+                    add_mcp_btn = gr.Button("➕ Add", variant="secondary", scale=1)
+
+                xagent_mcp_list = gr.HTML(
+                    value="<p><em>No MCP servers configured</em></p>",
+                    label="Configured Servers",
                 )
-                mcp_server_command = gr.Textbox(
-                    label="Command",
-                    placeholder="e.g., npx @modelcontextprotocol/server-browser",
-                    scale=3,
-                )
-                add_mcp_btn = gr.Button("➕ Add MCP Server", variant="primary")
 
-            xagent_mcp_list = gr.HTML(
-                value="<p><em>No MCP servers configured for XAgent</em></p>",
-                label="XAgent MCP Servers",
-            )
-
-        # Execution Section
+        # Results & Status Section
         with gr.Group():
-            gr.Markdown("## 🚀 Execution")
+            gr.Markdown("### 📊 Execution Status & Results")
 
-            with gr.Row():
-                run_button = gr.Button(
-                    "🚀 Run XAgent",
-                    variant="primary",
-                    elem_id="xagent_run_button",
-                    scale=2,
-                )
-                stop_button = gr.Button(
-                    "⏹️ Stop All",
-                    variant="stop",
-                    interactive=False,
-                    elem_id="xagent_stop_button",
-                    scale=1,
-                )
-                clear_button = gr.Button(
-                    "🗑️ Clear", elem_id="xagent_clear_button", scale=1
-                )
-
-        # Results Section
-        with gr.Group():
-            gr.Markdown("## 📊 Results")
-
-            # Active Agents Display
-            active_agents_display = gr.HTML(
-                value="<p><em>No active agents</em></p>",
-                label="Active XAgent Instances",
-            )
-
-            # Chat interface
-            chatbot = gr.Chatbot(
-                label="XAgent Execution Log",
-                height=400,
-                elem_id="xagent_chatbot",
-                type="messages",
-            )
-
-            # Status and results
+            # Status bar
             with gr.Row():
                 status_text = gr.Textbox(
                     label="Status",
                     value="Ready",
                     interactive=False,
                     elem_id="xagent_status",
+                    scale=2,
                 )
 
                 task_id_text = gr.Textbox(
-                    label="Current Task ID",
+                    label="Task ID",
                     value="",
                     interactive=False,
                     elem_id="xagent_task_id",
+                    scale=1,
+                )
+
+            # Active Agents Display
+            active_agents_display = gr.HTML(
+                value="<p><em>No active agents</em></p>",
+                label="Active Agents",
+            )
+
+            # Execution Log
+            with gr.Accordion("📋 Execution Log", open=True):
+                chatbot = gr.Chatbot(
+                    label="XAgent Log",
+                    height=300,
+                    elem_id="xagent_chatbot",
+                    type="messages",
+                    show_label=False,
                 )
 
             # Results download
             results_file = gr.File(
-                label="Download Results", visible=False, elem_id="xagent_results_file"
+                label="📁 Download Results",
+                visible=False,
+                elem_id="xagent_results_file",
             )
 
     # Component references for webui_manager
@@ -223,7 +236,6 @@ def create_xagent_tab(webui_manager):
         "xagent_max_steps": max_steps,
         "xagent_parallel_agents": parallel_agents,
         "xagent_save_results": save_results,
-        "xagent_stealth_mode": stealth_mode,
         "xagent_profile_name": profile_name,
         "xagent_profile_list": profile_list,
         "xagent_mcp_servers": xagent_mcp_servers,
@@ -245,7 +257,6 @@ def create_xagent_tab(webui_manager):
         max_steps_val,
         parallel_agents_val,
         save_results_val,
-        stealth_mode_val,
         mcp_servers_val,
         profiles_val,
     ):
@@ -261,7 +272,6 @@ def create_xagent_tab(webui_manager):
             "max_steps": max_steps_val,
             "parallel_agents": parallel_agents_val,
             "save_results": save_results_val,
-            "stealth_mode": stealth_mode_val,
             "mcp_servers": mcp_servers_val,
             "created_at": datetime.now().isoformat(),
         }
@@ -286,7 +296,7 @@ def create_xagent_tab(webui_manager):
         """Load a saved profile."""
         if not selected_profile or selected_profile not in profiles_val:
             gr.Warning("Please select a valid profile")
-            return [gr.update() for _ in range(8)]
+            return [gr.update() for _ in range(7)]
 
         profile_data = profiles_val[selected_profile]
         gr.Info(f"Profile '{selected_profile}' loaded successfully!")
@@ -300,7 +310,6 @@ def create_xagent_tab(webui_manager):
             gr.update(value=profile_data.get("max_steps", 50)),
             gr.update(value=profile_data.get("parallel_agents", 1)),
             gr.update(value=profile_data.get("save_results", True)),
-            gr.update(value=profile_data.get("stealth_mode", True)),
             profile_data.get("mcp_servers", {}),
         ]
 
@@ -383,7 +392,6 @@ def create_xagent_tab(webui_manager):
         max_steps_val,
         parallel_agents_val,
         save_results_val,
-        stealth_mode_val,
         mcp_servers_val,
         active_agents_val,
         chatbot_val,
@@ -421,7 +429,7 @@ def create_xagent_tab(webui_manager):
                     "max_steps": max_steps_val,
                     "save_dir": save_dir_val,
                     "browser_user_data": agent_browser_data,
-                    "stealth_mode": stealth_mode_val,
+                    "save_results": save_results_val,
                     "mcp_servers": mcp_servers_val,
                     "started_at": datetime.now().isoformat(),
                 }
@@ -524,7 +532,6 @@ def create_xagent_tab(webui_manager):
             max_steps,
             parallel_agents,
             save_results,
-            stealth_mode,
             xagent_mcp_servers,
             profiles_state,
         ],
@@ -541,7 +548,6 @@ def create_xagent_tab(webui_manager):
             max_steps,
             parallel_agents,
             save_results,
-            stealth_mode,
             xagent_mcp_servers,
         ],
     )
@@ -569,7 +575,6 @@ def create_xagent_tab(webui_manager):
             max_steps,
             parallel_agents,
             save_results,
-            stealth_mode,
             xagent_mcp_servers,
             active_agents_state,
             chatbot,
@@ -636,10 +641,6 @@ def create_xagent_tab(webui_manager):
 
     save_results.change(
         fn=lambda val: save_xagent_setting("save_results", val), inputs=[save_results]
-    )
-
-    stealth_mode.change(
-        fn=lambda val: save_xagent_setting("stealth_mode", val), inputs=[stealth_mode]
     )
 
     # Initialize profiles
