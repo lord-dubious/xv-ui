@@ -8,3 +8,5 @@ langchain-ibm==0.3.10
 langchain_mcp_adapters==0.0.9
 langgraph==0.3.34
 langchain-community
+pyotp==2.9.0
+schedule==1.2.2
