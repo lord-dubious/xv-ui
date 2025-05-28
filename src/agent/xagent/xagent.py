@@ -26,6 +26,14 @@ from src.controller.custom_controller import CustomController
 #     ProxyManager = None
 #     PROXY_AVAILABLE = False
 
+# Import TwitterAgent integration
+try:
+    from src.agent.xagent.twitter_agent import TwitterAgent
+    TWITTER_AGENT_AVAILABLE = True
+except ImportError:
+    TwitterAgent = None
+    TWITTER_AGENT_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +47,7 @@ class XAgent:
     - Enhanced anti-detection capabilities
     - Automatic proxy failover
     - Connection isolation (all traffic through proxy)
+    - Twitter automation capabilities (via twagent)
     """
 
     def __init__(
@@ -49,6 +58,7 @@ class XAgent:
         proxy_rotation_mode: str = "round_robin",
         mcp_server_config: Optional[Dict[str, Any]] = None,
         mode: str = "stealth",  # "stealth", "proxy", or "hybrid"
+        twitter_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize XAgent with stealth and proxy capabilities.
@@ -60,11 +70,13 @@ class XAgent:
             proxy_rotation_mode: "round_robin" or "random"
             mcp_server_config: MCP server configuration
             mode: "stealth" (Patchright only), "proxy" (browser+proxy), "hybrid" (both)
+            twitter_config: Optional Twitter configuration with cookies_path, persona_path, etc.
         """
         self.llm = llm
         self.browser_config = browser_config
         self.mcp_server_config = mcp_server_config or {}
         self.mode = mode
+        self.twitter_config = twitter_config or {}
 
         # Initialize proxy manager if proxies provided (commented out for this branch)
         self.proxy_manager = None
@@ -76,11 +88,24 @@ class XAgent:
         #         "⚠️ Proxy list provided but proxy dependencies not available. Install 'proxystr' for proxy support."
         #     )
 
+        # Initialize Twitter agent if configured
+        self.twitter_agent = None
+        if TWITTER_AGENT_AVAILABLE and self.twitter_config:
+            logger.info("🐦 Initializing Twitter agent integration")
+            self.twitter_agent = TwitterAgent(
+                xagent=self,
+                cookies_path=self.twitter_config.get("cookies_path"),
+                persona_path=self.twitter_config.get("persona_path"),
+                config_path=self.twitter_config.get("config_path"),
+            )
+
         # Agent state
         self.current_task_id = None
         self.runner = None
         self.stopped = False
         self.stop_event = None
+        self.browser = None
+        self.context = None
 
         logger.info("🎭 XAgent initialized with Patchright stealth capabilities")
 
@@ -121,10 +146,11 @@ class XAgent:
         self.stopped = False
 
         logger.info(f"🎭 Starting XAgent task: {task}")
-        logger.info(f"🆔 Task ID: {self.current_task_id}")
+        logger.info(f"🔔 Task ID: {self.current_task_id}")
 
         # Initialize browser variable for cleanup
-        browser = None
+        self.browser = None
+        self.context = None
 
         try:
             # Test proxies if enabled (commented out for this branch)
@@ -145,9 +171,14 @@ class XAgent:
             #     )
 
             # Create stealth browser with proxy support
-            browser = await self._create_stealth_browser()
-            context = await self._create_stealth_context(browser)
+            self.browser = await self._create_stealth_browser()
+            self.context = await self._create_stealth_context(self.browser)
             controller = CustomController()
+
+            # Initialize Twitter agent if available but not initialized
+            if self.twitter_agent and not self.twitter_agent.initialized:
+                logger.info("🐦 Initializing Twitter agent for task")
+                await self.twitter_agent.initialize()
 
             # Create specialized system prompt for XAgent
             xagent_prompt = self._create_xagent_prompt(task)
@@ -156,8 +187,8 @@ class XAgent:
             browser_agent = BrowserUseAgent(
                 task=xagent_prompt,
                 llm=self.llm,
-                browser=browser,
-                browser_context=context,
+                browser=self.browser,
+                browser_context=self.context,
                 controller=controller,
                 source="xagent",
             )
@@ -193,8 +224,10 @@ class XAgent:
         finally:
             # Cleanup
             try:
-                if browser:
-                    await browser.close()
+                if self.browser:
+                    await self.browser.close()
+                    self.browser = None
+                    self.context = None
             except Exception as e:
                 logger.error(f"Error closing browser: {e}")
 
@@ -206,9 +239,14 @@ class XAgent:
         #     if current_proxy:
         #         proxy_info = f"\nProxy: Using SOCKS5 proxy {current_proxy.host}:{current_proxy.port} for enhanced anonymity"
 
+        twitter_info = ""
+        if self.twitter_agent and self.twitter_agent.initialized:
+            twitter_info = "\n🐦 TWITTER CAPABILITIES: Enabled with browser-based automation for tweeting, following, and engagement"
+
         return f"""
         XAgent Stealth Task: {task}
         {proxy_info}
+        {twitter_info}
 
         You are XAgent, an advanced stealth automation specialist with enhanced capabilities:
 
@@ -229,6 +267,13 @@ class XAgent:
         - Datadome, Fingerprint.com evasion
         - CreepJS, Sannysoft stealth
         - Enhanced bot detection resistance
+        
+        🐦 TWITTER CAPABILITIES:
+        - Browser-based Twitter automation
+        - Tweet creation and replies
+        - Following users and managing lists
+        - Persona-based content generation
+        - Cookie-based authentication
 
         GUIDELINES:
         1. Always respect website terms of service
@@ -237,6 +282,7 @@ class XAgent:
         4. Monitor for detection attempts
         5. Rotate proxies if connection issues occur
         6. Maintain realistic browsing patterns
+        7. For Twitter: maintain natural posting patterns
 
         Execute the task step by step with maximum stealth and anonymity.
         """
@@ -345,8 +391,112 @@ class XAgent:
         # if self.proxy_manager:
         #     status["proxy_status"] = self.proxy_manager.get_status()
         #     status["current_proxy"] = self._get_current_proxy_info()
+        
+        # Add Twitter agent status if available
+        if self.twitter_agent:
+            status["twitter_agent"] = {
+                "initialized": self.twitter_agent.initialized,
+                "last_error": self.twitter_agent.last_error,
+            }
 
         return status
+
+    async def create_tweet(self, content: str, media_paths: Optional[List[str]] = None, persona_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Create a new tweet using the Twitter agent.
+        
+        Args:
+            content: Tweet text content
+            media_paths: Optional list of paths to media files to attach
+            persona_name: Optional persona to use for tweet generation
+            
+        Returns:
+            Dict with tweet result information
+        """
+        if not self.twitter_agent:
+            return {
+                "status": "error",
+                "error": "Twitter agent not available",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        return await self.twitter_agent.create_tweet(content, media_paths, persona_name)
+    
+    async def reply_to_tweet(self, tweet_url: str, content: str, media_paths: Optional[List[str]] = None, persona_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Reply to an existing tweet using the Twitter agent.
+        
+        Args:
+            tweet_url: URL of the tweet to reply to
+            content: Reply text content
+            media_paths: Optional list of paths to media files to attach
+            persona_name: Optional persona to use for reply generation
+            
+        Returns:
+            Dict with reply result information
+        """
+        if not self.twitter_agent:
+            return {
+                "status": "error",
+                "error": "Twitter agent not available",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        return await self.twitter_agent.reply_to_tweet(tweet_url, content, media_paths, persona_name)
+    
+    async def follow_user(self, username: str) -> Dict[str, Any]:
+        """
+        Follow a Twitter user using the Twitter agent.
+        
+        Args:
+            username: Twitter username to follow (without @)
+            
+        Returns:
+            Dict with follow result information
+        """
+        if not self.twitter_agent:
+            return {
+                "status": "error",
+                "error": "Twitter agent not available",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        return await self.twitter_agent.follow_user(username)
+    
+    async def bulk_follow(self, usernames: List[str]) -> Dict[str, Any]:
+        """
+        Follow multiple Twitter users using the Twitter agent.
+        
+        Args:
+            usernames: List of Twitter usernames to follow
+            
+        Returns:
+            Dict with bulk follow result information
+        """
+        if not self.twitter_agent:
+            return {
+                "status": "error",
+                "error": "Twitter agent not available",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        return await self.twitter_agent.bulk_follow(usernames)
+    
+    async def get_available_personas(self) -> Dict[str, Any]:
+        """
+        Get list of available Twitter personas.
+        
+        Returns:
+            Dict with persona information
+        """
+        if not self.twitter_agent:
+            return {
+                "status": "error",
+                "error": "Twitter agent not available",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        return await self.twitter_agent.get_available_personas()
 
     # async def rotate_proxy(self) -> Dict[str, Any]:
     #     """Manually rotate to next proxy."""
