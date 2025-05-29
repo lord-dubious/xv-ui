@@ -1,22 +1,34 @@
 """
-XAgent - Advanced stealth agent using Patchright with SOCKS5 proxy support.
+XAgent - Advanced stealth agent using Patchright with integrated Twitter capabilities.
 
-This agent combines Patchright's enhanced stealth capabilities with rotating
-SOCKS5 proxies for maximum anonymity and bot detection evasion.
+This agent combines Patchright's enhanced stealth capabilities with Twitter automation
+for maximum functionality and bot detection evasion.
 """
 
 import asyncio
+import json
 import logging
+import os
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+import pyotp
+import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from browser_use.browser.browser import BrowserConfig
-from browser_use.browser.context import BrowserContextConfig
-
-from src.agent.browser_use.browser_use_agent import BrowserUseAgent
-from src.browser.stealth_browser import StealthBrowser
-from src.controller.custom_controller import CustomController
+# Import browser_use components with fallback
+try:
+    from browser_use.browser.browser import BrowserConfig
+    from browser_use.browser.context import BrowserContextConfig
+    from src.agent.browser_use.browser_use_agent import BrowserUseAgent
+    from src.browser.stealth_browser import StealthBrowser
+    from src.controller.custom_controller import CustomController
+    BROWSER_USE_AVAILABLE = True
+except ImportError:
+    BROWSER_USE_AVAILABLE = False
+    logging.warning("Browser-use components not available. Some functionality will be limited.")
 
 # Optional proxy support (commented out for this branch)
 # try:
@@ -26,28 +38,36 @@ from src.controller.custom_controller import CustomController
 #     ProxyManager = None
 #     PROXY_AVAILABLE = False
 
-# Import TwitterAgent integration
+# Import Twitter functionality
 try:
-    from src.agent.xagent.twitter_agent import TwitterAgent
-    TWITTER_AGENT_AVAILABLE = True
+    # These imports will work after the twagent library is installed
+    from browser_use.my_twitter_api_v3.follows.follow_system import FollowSystem
+    from browser_use.my_twitter_api_v3.follows.follow_user import FollowUser
+    from browser_use.my_twitter_api_v3.lists.create_list import CreateList
+    from browser_use.my_twitter_api_v3.manage_posts.create_post import CreatePost
+    from browser_use.my_twitter_api_v3.manage_posts.reply_to_post import ReplyToPost
+    from browser_use.my_twitter_api_v3.persona_manager import PersonaManager
+    from browser_use.my_twitter_api_v3.tweet_generator import TweetGenerator
+    from browser_use.twitter_api import TwitterAPI
+    TWITTER_AVAILABLE = True
 except ImportError:
-    TwitterAgent = None
-    TWITTER_AGENT_AVAILABLE = False
+    TWITTER_AVAILABLE = False
+    logging.warning("Twitter functionality not available. Install twagent for Twitter support.")
 
 logger = logging.getLogger(__name__)
 
 
 class XAgent:
     """
-    XAgent - Advanced stealth agent with Patchright and proxy rotation.
+    XAgent - Advanced stealth agent with integrated Twitter capabilities.
 
     Features:
     - Patchright stealth browser (Chrome-only optimized)
-    - SOCKS5 proxy rotation with proxystr
     - Enhanced anti-detection capabilities
-    - Automatic proxy failover
-    - Connection isolation (all traffic through proxy)
-    - Twitter automation capabilities (via twagent)
+    - Twitter automation capabilities (directly integrated)
+    - Persona-based content generation
+    - Secure credential management
+    - Behavioral loops and scheduling
     """
 
     def __init__(
@@ -59,9 +79,10 @@ class XAgent:
         mcp_server_config: Optional[Dict[str, Any]] = None,
         mode: str = "stealth",  # "stealth", "proxy", or "hybrid"
         twitter_config: Optional[Dict[str, Any]] = None,
+        profile_name: Optional[str] = None,
     ):
         """
-        Initialize XAgent with stealth and proxy capabilities.
+        Initialize XAgent with stealth and Twitter capabilities.
 
         Args:
             llm: Language model instance
@@ -70,13 +91,15 @@ class XAgent:
             proxy_rotation_mode: "round_robin" or "random"
             mcp_server_config: MCP server configuration
             mode: "stealth" (Patchright only), "proxy" (browser+proxy), "hybrid" (both)
-            twitter_config: Optional Twitter configuration with cookies_path, persona_path, etc.
+            twitter_config: Optional Twitter configuration
+            profile_name: Optional profile name for configuration isolation
         """
         self.llm = llm
         self.browser_config = browser_config
         self.mcp_server_config = mcp_server_config or {}
         self.mode = mode
         self.twitter_config = twitter_config or {}
+        self.profile_name = profile_name or "default"
 
         # Initialize proxy manager if proxies provided (commented out for this branch)
         self.proxy_manager = None
@@ -88,16 +111,27 @@ class XAgent:
         #         "⚠️ Proxy list provided but proxy dependencies not available. Install 'proxystr' for proxy support."
         #     )
 
-        # Initialize Twitter agent if configured
-        self.twitter_agent = None
-        if TWITTER_AGENT_AVAILABLE and self.twitter_config:
-            logger.info("🐦 Initializing Twitter agent integration")
-            self.twitter_agent = TwitterAgent(
-                xagent=self,
-                cookies_path=self.twitter_config.get("cookies_path"),
-                persona_path=self.twitter_config.get("persona_path"),
-                config_path=self.twitter_config.get("config_path"),
-            )
+        # Twitter integration components
+        self.twitter_api = None
+        self.persona_manager = None
+        self.tweet_generator = None
+        self.twitter_initialized = False
+        self.twitter_credentials = {
+            "username": "",
+            "email": "",
+            "password": "",
+            "totp_secret": "",
+        }
+        
+        # Behavioral loop settings
+        self.action_loops = []
+        self.scheduled_actions = []
+        self.loop_running = False
+        self.loop_task = None
+        
+        # Encryption for secure credential storage
+        self._encryption_key = None
+        self._initialize_encryption()
 
         # Agent state
         self.current_task_id = None
@@ -107,7 +141,530 @@ class XAgent:
         self.browser = None
         self.context = None
 
+        # Load profile configuration if available
+        self._load_profile_config()
+
         logger.info("🎭 XAgent initialized with Patchright stealth capabilities")
+
+    def _initialize_encryption(self):
+        """Initialize encryption for secure credential storage."""
+        try:
+            salt = b'xagent_salt_for_credentials'
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            key = base64.urlsafe_b64encode(kdf.derive(self.profile_name.encode()))
+            self._encryption_key = Fernet(key)
+        except Exception as e:
+            logger.error(f"Failed to initialize encryption: {e}")
+            self._encryption_key = None
+
+    def _encrypt_data(self, data: str) -> str:
+        """Encrypt sensitive data."""
+        if not self._encryption_key or not data:
+            return data
+        try:
+            return self._encryption_key.encrypt(data.encode()).decode()
+        except Exception as e:
+            logger.error(f"Failed to encrypt data: {e}")
+            return data
+
+    def _decrypt_data(self, encrypted_data: str) -> str:
+        """Decrypt sensitive data."""
+        if not self._encryption_key or not encrypted_data:
+            return encrypted_data
+        try:
+            return self._encryption_key.decrypt(encrypted_data.encode()).decode()
+        except Exception as e:
+            logger.error(f"Failed to decrypt data: {e}")
+            return encrypted_data
+
+    def _load_profile_config(self):
+        """Load profile configuration from file."""
+        try:
+            profile_dir = os.path.join("./profiles", self.profile_name)
+            config_file = os.path.join(profile_dir, "config.json")
+            
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                
+                # Load encrypted credentials
+                credentials = config.get("credentials", {})
+                for key, value in credentials.items():
+                    if value:
+                        self.twitter_credentials[key] = self._decrypt_data(value)
+                
+                # Load action loops
+                self.action_loops = config.get("action_loops", [])
+                self.scheduled_actions = config.get("scheduled_actions", [])
+                
+                logger.info(f"📁 Loaded profile configuration: {self.profile_name}")
+            else:
+                logger.info(f"📁 No profile configuration found for: {self.profile_name}")
+                
+        except Exception as e:
+            logger.error(f"Failed to load profile config: {e}")
+
+    def _save_profile_config(self):
+        """Save profile configuration to file."""
+        try:
+            profile_dir = os.path.join("./profiles", self.profile_name)
+            os.makedirs(profile_dir, exist_ok=True)
+            config_file = os.path.join(profile_dir, "config.json")
+            
+            # Encrypt credentials before saving
+            encrypted_credentials = {}
+            for key, value in self.twitter_credentials.items():
+                if value:
+                    encrypted_credentials[key] = self._encrypt_data(value)
+                else:
+                    encrypted_credentials[key] = ""
+            
+            config = {
+                "twitter": self.twitter_config,
+                "credentials": encrypted_credentials,
+                "action_loops": self.action_loops,
+                "scheduled_actions": self.scheduled_actions,
+            }
+            
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+                
+            logger.info(f"💾 Saved profile configuration: {self.profile_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save profile config: {e}")
+
+    def save_twitter_credentials(self, username: str, email: str, password: str, totp_secret: str) -> Dict[str, Any]:
+        """Save Twitter credentials securely."""
+        try:
+            self.twitter_credentials = {
+                "username": username,
+                "email": email,
+                "password": password,
+                "totp_secret": totp_secret,
+            }
+            
+            self._save_profile_config()
+            
+            return {
+                "status": "success",
+                "message": "Credentials saved successfully",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to save credentials: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    def get_current_totp_code(self) -> str:
+        """Get current TOTP code for 2FA."""
+        try:
+            if not self.twitter_credentials.get("totp_secret"):
+                return ""
+            
+            totp = pyotp.TOTP(self.twitter_credentials["totp_secret"])
+            return totp.now()
+            
+        except Exception as e:
+            logger.error(f"Failed to generate TOTP code: {e}")
+            return ""
+
+    async def initialize_twitter(self) -> Dict[str, Any]:
+        """Initialize Twitter functionality."""
+        if not TWITTER_AVAILABLE:
+            return {
+                "status": "error",
+                "error": "Twitter functionality not available. Install twagent for Twitter support.",
+                "timestamp": datetime.now().isoformat(),
+            }
+        
+        try:
+            # Initialize Twitter API with browser context
+            if not self.browser or not self.context:
+                # Create browser context if not available
+                await self._ensure_browser_context()
+            
+            self.twitter_api = TwitterAPI(
+                browser_context=self.context,
+                cookies_path=self.twitter_config.get("cookies_path", "./cookies.json"),
+            )
+            
+            # Initialize persona manager
+            persona_path = self.twitter_config.get("persona_path", "./personas")
+            if os.path.exists(persona_path):
+                self.persona_manager = PersonaManager(persona_path)
+            
+            # Initialize tweet generator with LLM
+            if self.llm:
+                self.tweet_generator = TweetGenerator(self.llm)
+            
+            self.twitter_initialized = True
+            
+            return {
+                "status": "success",
+                "message": "Twitter functionality initialized",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize Twitter: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def _ensure_browser_context(self):
+        """Ensure browser context is available."""
+        if not BROWSER_USE_AVAILABLE:
+            raise Exception("Browser-use components not available")
+            
+        if not self.browser:
+            self.browser = await self._create_stealth_browser()
+        
+        if not self.context:
+            self.context = await self._create_stealth_context(self.browser)
+
+    async def create_tweet(self, content: str, media_paths: Optional[List[str]] = None, persona_name: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new tweet."""
+        if not self.twitter_initialized:
+            init_result = await self.initialize_twitter()
+            if init_result["status"] != "success":
+                return init_result
+        
+        try:
+            # Generate content with persona if specified
+            if persona_name and self.persona_manager and self.tweet_generator:
+                persona = self.persona_manager.get_persona(persona_name)
+                if persona:
+                    content = await self.tweet_generator.generate_tweet(content, persona)
+            
+            # Create tweet using Twitter API
+            create_post = CreatePost(self.twitter_api)
+            result = await create_post.create_tweet(content, media_paths)
+            
+            return {
+                "status": "success",
+                "result": result,
+                "content": content,
+                "persona": persona_name,
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create tweet: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def reply_to_tweet(self, tweet_url: str, content: str, media_paths: Optional[List[str]] = None, persona_name: Optional[str] = None) -> Dict[str, Any]:
+        """Reply to an existing tweet."""
+        if not self.twitter_initialized:
+            init_result = await self.initialize_twitter()
+            if init_result["status"] != "success":
+                return init_result
+        
+        try:
+            # Generate content with persona if specified
+            if persona_name and self.persona_manager and self.tweet_generator:
+                persona = self.persona_manager.get_persona(persona_name)
+                if persona:
+                    content = await self.tweet_generator.generate_reply(content, persona)
+            
+            # Reply to tweet using Twitter API
+            reply_to_post = ReplyToPost(self.twitter_api)
+            result = await reply_to_post.reply_to_tweet(tweet_url, content, media_paths)
+            
+            return {
+                "status": "success",
+                "result": result,
+                "content": content,
+                "tweet_url": tweet_url,
+                "persona": persona_name,
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to reply to tweet: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def follow_user(self, username: str) -> Dict[str, Any]:
+        """Follow a Twitter user."""
+        if not self.twitter_initialized:
+            init_result = await self.initialize_twitter()
+            if init_result["status"] != "success":
+                return init_result
+        
+        try:
+            follow_user = FollowUser(self.twitter_api)
+            result = await follow_user.follow(username)
+            
+            return {
+                "status": "success",
+                "result": result,
+                "username": username,
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to follow user: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def bulk_follow(self, usernames: List[str]) -> Dict[str, Any]:
+        """Follow multiple Twitter users."""
+        if not self.twitter_initialized:
+            init_result = await self.initialize_twitter()
+            if init_result["status"] != "success":
+                return init_result
+        
+        try:
+            follow_system = FollowSystem(self.twitter_api)
+            result = await follow_system.bulk_follow(usernames)
+            
+            return {
+                "status": "success",
+                "result": result,
+                "usernames": usernames,
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to bulk follow: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def start_action_loop(self) -> Dict[str, Any]:
+        """Start behavioral action loops."""
+        if self.loop_running:
+            return {
+                "status": "error",
+                "error": "Action loop already running",
+                "timestamp": datetime.now().isoformat(),
+            }
+        
+        if not self.action_loops:
+            return {
+                "status": "error",
+                "error": "No action loops configured",
+                "timestamp": datetime.now().isoformat(),
+            }
+        
+        try:
+            self.loop_running = True
+            self.loop_task = asyncio.create_task(self._run_action_loops())
+            
+            return {
+                "status": "success",
+                "message": "Action loops started",
+                "loops_count": len(self.action_loops),
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to start action loops: {e}")
+            self.loop_running = False
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def stop_action_loop(self) -> Dict[str, Any]:
+        """Stop behavioral action loops."""
+        if not self.loop_running:
+            return {
+                "status": "error",
+                "error": "No action loop running",
+                "timestamp": datetime.now().isoformat(),
+            }
+        
+        try:
+            self.loop_running = False
+            if self.loop_task:
+                self.loop_task.cancel()
+                try:
+                    await self.loop_task
+                except asyncio.CancelledError:
+                    pass
+                self.loop_task = None
+            
+            return {
+                "status": "success",
+                "message": "Action loops stopped",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to stop action loops: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def _run_action_loops(self):
+        """Run the behavioral action loops."""
+        while self.loop_running:
+            try:
+                for loop in self.action_loops:
+                    if not self.loop_running:
+                        break
+                    
+                    loop_id = loop.get("id", "unknown")
+                    interval = loop.get("interval_seconds", 3600)
+                    actions = loop.get("actions", [])
+                    
+                    logger.info(f"🔄 Executing action loop: {loop_id}")
+                    
+                    for action in actions:
+                        if not self.loop_running:
+                            break
+                        
+                        action_type = action.get("type")
+                        params = action.get("params", {})
+                        
+                        try:
+                            await self._execute_action(action_type, params)
+                        except Exception as e:
+                            logger.error(f"Failed to execute action {action_type}: {e}")
+                    
+                    # Wait for the interval before next loop iteration
+                    if self.loop_running:
+                        await asyncio.sleep(interval)
+                        
+            except Exception as e:
+                logger.error(f"Error in action loop: {e}")
+                await asyncio.sleep(60)  # Wait before retrying
+
+    async def _execute_action(self, action_type: str, params: Dict[str, Any]):
+        """Execute a single action."""
+        if action_type == "tweet":
+            content = params.get("content", "")
+            persona = params.get("persona")
+            media_paths = params.get("media_paths")
+            await self.create_tweet(content, media_paths, persona)
+            
+        elif action_type == "reply":
+            tweet_url = params.get("tweet_url", "")
+            content = params.get("content", "")
+            persona = params.get("persona")
+            media_paths = params.get("media_paths")
+            await self.reply_to_tweet(tweet_url, content, media_paths, persona)
+            
+        elif action_type == "follow":
+            username = params.get("username", "")
+            await self.follow_user(username)
+            
+        elif action_type == "bulk_follow":
+            usernames = params.get("usernames", [])
+            await self.bulk_follow(usernames)
+            
+        elif action_type == "delay":
+            seconds = params.get("seconds", 60)
+            await asyncio.sleep(seconds)
+            
+        else:
+            logger.warning(f"Unknown action type: {action_type}")
+
+    def save_action_loops(self, loops_json: str) -> Dict[str, Any]:
+        """Save action loops configuration."""
+        try:
+            loops = json.loads(loops_json)
+            self.action_loops = loops
+            self._save_profile_config()
+            
+            return {
+                "status": "success",
+                "message": "Action loops saved successfully",
+                "loops_count": len(loops),
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+        except json.JSONDecodeError as e:
+            return {
+                "status": "error",
+                "error": f"Invalid JSON: {e}",
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"Failed to save action loops: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    def get_action_loops_status(self) -> Dict[str, Any]:
+        """Get current action loops status."""
+        return {
+            "loop_running": self.loop_running,
+            "loops_count": len(self.action_loops),
+            "action_loops": self.action_loops,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    async def _create_stealth_browser(self):
+        """Create StealthBrowser with enhanced capabilities."""
+        if not BROWSER_USE_AVAILABLE:
+            raise Exception("Browser-use components not available")
+            
+        # Enhanced browser config for stealth
+        config = BrowserConfig(
+            headless=self.browser_config.get("headless", False),
+            disable_security=self.browser_config.get("disable_security", False),
+            browser_binary_path=self.browser_config.get("browser_binary_path"),
+            browser_class="chromium",  # Patchright only supports Chromium
+            extra_browser_args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
+                "--disable-features=TranslateUI",
+                "--disable-ipc-flooding-protection",
+            ],
+        )
+
+        # Create StealthBrowser with proxy manager
+        browser = StealthBrowser(config, self.proxy_manager)
+        return browser
+
+    async def _create_stealth_context(self, browser):
+        """Create stealth browser context."""
+        if not BROWSER_USE_AVAILABLE:
+            raise Exception("Browser-use components not available")
+            
+        context_config = BrowserContextConfig(
+            save_downloads_path="./tmp/xagent/downloads",
+            window_height=self.browser_config.get("window_height", 1100),
+            window_width=self.browser_config.get("window_width", 1280),
+            force_new_context=True,
+        )
+        return await browser.new_context(context_config)
 
     async def run(
         self,
@@ -130,6 +687,13 @@ class XAgent:
         Returns:
             Dict with task results
         """
+        if not BROWSER_USE_AVAILABLE:
+            return {
+                "status": "error",
+                "error": "Browser-use components not available",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
         if self.runner and not self.runner.done():
             logger.warning(
                 "XAgent is already running. Please stop the current task first."
@@ -153,32 +717,15 @@ class XAgent:
         self.context = None
 
         try:
-            # Test proxies if enabled (commented out for this branch)
-            # if self.proxy_manager and test_proxies:
-            #     logger.info("🧪 Testing proxies before starting...")
-            #     proxy_report = await self.proxy_manager.test_all_proxies()
-            #
-            #     if proxy_report["working_proxies"] == 0:
-            #         return {
-            #             "status": "error",
-            #             "message": "No working proxies available",
-            #             "task_id": self.current_task_id,
-            #             "proxy_report": proxy_report,
-            #         }
-            #
-            #     logger.info(
-            #         f"✅ {proxy_report['working_proxies']}/{proxy_report['total_proxies']} proxies working"
-            #     )
-
             # Create stealth browser with proxy support
             self.browser = await self._create_stealth_browser()
             self.context = await self._create_stealth_context(self.browser)
             controller = CustomController()
 
             # Initialize Twitter agent if available but not initialized
-            if self.twitter_agent and not self.twitter_agent.initialized:
+            if self.twitter_config and not self.twitter_initialized:
                 logger.info("🐦 Initializing Twitter agent for task")
-                await self.twitter_agent.initialize()
+                await self.initialize_twitter()
 
             # Create specialized system prompt for XAgent
             xagent_prompt = self._create_xagent_prompt(task)
@@ -240,7 +787,7 @@ class XAgent:
         #         proxy_info = f"\nProxy: Using SOCKS5 proxy {current_proxy.host}:{current_proxy.port} for enhanced anonymity"
 
         twitter_info = ""
-        if self.twitter_agent and self.twitter_agent.initialized:
+        if self.twitter_initialized:
             twitter_info = "\n🐦 TWITTER CAPABILITIES: Enabled with browser-based automation for tweeting, following, and engagement"
 
         return f"""
@@ -287,46 +834,8 @@ class XAgent:
         Execute the task step by step with maximum stealth and anonymity.
         """
 
-    async def _create_stealth_browser(self) -> StealthBrowser:
-        """Create StealthBrowser with proxy support."""
-        # Enhanced browser config for stealth
-        config = BrowserConfig(
-            headless=self.browser_config.get("headless", False),
-            disable_security=self.browser_config.get("disable_security", False),
-            browser_binary_path=self.browser_config.get("browser_binary_path"),
-            browser_class="chromium",  # Patchright only supports Chromium
-            extra_browser_args=[
-                "--disable-blink-features=AutomationControlled",
-                "--disable-dev-shm-usage",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-                "--disable-features=TranslateUI",
-                "--disable-ipc-flooding-protection",
-            ],
-        )
-
-        # Create StealthBrowser with proxy manager
-        browser = StealthBrowser(config, self.proxy_manager)
-        return browser
-
-    async def _create_stealth_context(self, browser: StealthBrowser):
-        """Create stealth browser context."""
-        context_config = BrowserContextConfig(
-            save_downloads_path="./tmp/xagent/downloads",
-            window_height=self.browser_config.get("window_height", 1100),
-            window_width=self.browser_config.get("window_width", 1280),
-            force_new_context=True,
-        )
-        return await browser.new_context(context_config)
-
     async def _save_results(self, result: str, save_dir: str):
         """Save XAgent task results."""
-        import json
-        import os
-
         os.makedirs(save_dir, exist_ok=True)
 
         result_file = os.path.join(save_dir, f"{self.current_task_id}_result.json")
@@ -386,146 +895,13 @@ class XAgent:
             "stopped": self.stopped,
             "stealth_engine": "Patchright",
             "proxy_enabled": self.proxy_manager is not None,
+            "twitter_initialized": self.twitter_initialized,
+            "loop_running": self.loop_running,
+            "profile_name": self.profile_name,
         }
 
         # if self.proxy_manager:
         #     status["proxy_status"] = self.proxy_manager.get_status()
         #     status["current_proxy"] = self._get_current_proxy_info()
-        
-        # Add Twitter agent status if available
-        if self.twitter_agent:
-            status["twitter_agent"] = {
-                "initialized": self.twitter_agent.initialized,
-                "last_error": self.twitter_agent.last_error,
-            }
 
         return status
-
-    async def create_tweet(self, content: str, media_paths: Optional[List[str]] = None, persona_name: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Create a new tweet using the Twitter agent.
-        
-        Args:
-            content: Tweet text content
-            media_paths: Optional list of paths to media files to attach
-            persona_name: Optional persona to use for tweet generation
-            
-        Returns:
-            Dict with tweet result information
-        """
-        if not self.twitter_agent:
-            return {
-                "status": "error",
-                "error": "Twitter agent not available",
-                "timestamp": datetime.now().isoformat(),
-            }
-            
-        return await self.twitter_agent.create_tweet(content, media_paths, persona_name)
-    
-    async def reply_to_tweet(self, tweet_url: str, content: str, media_paths: Optional[List[str]] = None, persona_name: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Reply to an existing tweet using the Twitter agent.
-        
-        Args:
-            tweet_url: URL of the tweet to reply to
-            content: Reply text content
-            media_paths: Optional list of paths to media files to attach
-            persona_name: Optional persona to use for reply generation
-            
-        Returns:
-            Dict with reply result information
-        """
-        if not self.twitter_agent:
-            return {
-                "status": "error",
-                "error": "Twitter agent not available",
-                "timestamp": datetime.now().isoformat(),
-            }
-            
-        return await self.twitter_agent.reply_to_tweet(tweet_url, content, media_paths, persona_name)
-    
-    async def follow_user(self, username: str) -> Dict[str, Any]:
-        """
-        Follow a Twitter user using the Twitter agent.
-        
-        Args:
-            username: Twitter username to follow (without @)
-            
-        Returns:
-            Dict with follow result information
-        """
-        if not self.twitter_agent:
-            return {
-                "status": "error",
-                "error": "Twitter agent not available",
-                "timestamp": datetime.now().isoformat(),
-            }
-            
-        return await self.twitter_agent.follow_user(username)
-    
-    async def bulk_follow(self, usernames: List[str]) -> Dict[str, Any]:
-        """
-        Follow multiple Twitter users using the Twitter agent.
-        
-        Args:
-            usernames: List of Twitter usernames to follow
-            
-        Returns:
-            Dict with bulk follow result information
-        """
-        if not self.twitter_agent:
-            return {
-                "status": "error",
-                "error": "Twitter agent not available",
-                "timestamp": datetime.now().isoformat(),
-            }
-            
-        return await self.twitter_agent.bulk_follow(usernames)
-    
-    async def get_available_personas(self) -> Dict[str, Any]:
-        """
-        Get list of available Twitter personas.
-        
-        Returns:
-            Dict with persona information
-        """
-        if not self.twitter_agent:
-            return {
-                "status": "error",
-                "error": "Twitter agent not available",
-                "timestamp": datetime.now().isoformat(),
-            }
-            
-        return await self.twitter_agent.get_available_personas()
-
-    # async def rotate_proxy(self) -> Dict[str, Any]:
-    #     """Manually rotate to next proxy."""
-    #     if not self.proxy_manager:
-    #         return {"status": "error", "message": "No proxy manager configured"}
-    #
-    #     old_proxy = self.proxy_manager.get_current_proxy()
-    #     new_proxy = self.proxy_manager.force_rotate()
-    #
-    #     return {
-    #         "status": "success",
-    #         "old_proxy": f"{old_proxy.host}:{old_proxy.port}" if old_proxy else None,
-    #         "new_proxy": f"{new_proxy.host}:{new_proxy.port}" if new_proxy else None,
-    #     }
-    #
-    # async def test_current_proxy(self) -> Dict[str, Any]:
-    #     """Test the current proxy."""
-    #     if not self.proxy_manager:
-    #         return {"status": "error", "message": "No proxy manager configured"}
-    #
-    #     current_proxy = self.proxy_manager.get_current_proxy()
-    #     if not current_proxy:
-    #         return {"status": "error", "message": "No current proxy available"}
-    #
-    #     is_working = await self.proxy_manager.test_proxy(current_proxy)
-    #
-    #     return {
-    #         "status": "success",
-    #         "proxy": f"{current_proxy.host}:{current_proxy.port}",
-    #         "is_working": is_working,
-    #         "response_time": current_proxy.response_time,
-    #     }

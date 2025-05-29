@@ -1,5 +1,8 @@
 """
-XAgent Loop Methods - Behavioral loop functionality for XAgent tab.
+XAgent Loop Methods - Behavioral loop functionality for XAgent UI.
+
+This module contains behavioral loop and scheduling methods for the XAgent interface,
+separated for better code organization and maintainability.
 """
 
 import asyncio
@@ -7,7 +10,13 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-import gradio as gr
+# Import gradio with fallback
+try:
+    import gradio as gr
+    GRADIO_AVAILABLE = True
+except ImportError:
+    GRADIO_AVAILABLE = False
+    logging.warning("Gradio not available. UI functionality will be limited.")
 
 logger = logging.getLogger(__name__)
 
@@ -131,4 +140,3 @@ class XAgentLoopMethods:
         except Exception as e:
             logger.error(f"Error getting loop status: {e}")
             return f"❌ Error: {str(e)}"
-

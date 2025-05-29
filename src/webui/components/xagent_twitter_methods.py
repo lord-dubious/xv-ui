@@ -1,13 +1,22 @@
 """
-XAgent Twitter Methods - Twitter-specific functionality for XAgent tab.
+XAgent Twitter Methods - Twitter-specific functionality for XAgent UI.
+
+This module contains Twitter-specific methods for the XAgent interface,
+separated for better code organization and maintainability.
 """
 
 import asyncio
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-import gradio as gr
+# Import gradio with fallback
+try:
+    import gradio as gr
+    GRADIO_AVAILABLE = True
+except ImportError:
+    GRADIO_AVAILABLE = False
+    logging.warning("Gradio not available. UI functionality will be limited.")
 
 logger = logging.getLogger(__name__)
 
@@ -213,4 +222,3 @@ class XAgentTwitterMethods:
             logger.error(f"Error in bulk follow: {e}")
             chat_history = [{"role": "assistant", "content": f"❌ Error: {str(e)}"}]
             return {"status": "error", "error": str(e)}, chat_history, f"Error: {str(e)}"
-

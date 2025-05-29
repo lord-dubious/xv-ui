@@ -264,3 +264,4 @@ class XAgentTab:
             stop_loop_button.click(
                 fn=self.loop_methods._stop_action_loop,
                 outputs=[loop_status],
+            )
