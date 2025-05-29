@@ -1,0 +1,30 @@
+[
+  {
+    "username": "test_final_user",
+    "action": "follow",
+    "source": "manual",
+    "timestamp": "2025-05-29T11:38:33.761588",
+    "status": "success"
+  },
+  {
+    "username": "user1",
+    "action": "follow",
+    "source": "bulk",
+    "timestamp": "2025-05-29T11:38:35.534962",
+    "status": "success"
+  },
+  {
+    "username": "user2",
+    "action": "follow",
+    "source": "bulk",
+    "timestamp": "2025-05-29T11:38:40.772087",
+    "status": "success"
+  },
+  {
+    "username": "user3",
+    "action": "follow",
+    "source": "bulk",
+    "timestamp": "2025-05-29T11:38:45.399703",
+    "status": "success"
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "credentials": {
+    "username": "",
+    "email": "",
+    "password": "",
+    "totp_secret": ""
+  },
+  "twitter_config": {
+    "cookies_path": "./profiles/final_test/cookies.json",
+    "config_path": "./profiles/final_test/config.json",
+    "headless": true,
+    "stealth_mode": true,
+    "user_agent": null,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "timeout": 30
+  },
+  "action_loops": [
+    {
+      "id": "final_test_loop",
+      "interval_seconds": 300,
+      "actions": [
+        {
+          "type": "tweet",
+          "params": {
+            "content": "Automated tweet from XAgent"
+          }
+        },
+        {
+          "type": "delay",
+          "params": {
+            "seconds": 60
+          }
+        }
+      ]
+    }
+  ],
+  "scheduled_actions": [],
+  "module_settings": {
+    "rate_limiting_enabled": true,
+    "caching_enabled": true,
+    "performance_monitoring_enabled": true,
+    "adaptive_delays_enabled": true,
+    "burst_protection_enabled": true
+  },
+  "time_interval_settings": {
+    "use_fixed_intervals": false,
+    "interval_minutes": 60,
+    "randomize_intervals": true,
+    "randomization_factor": 0.2
+  },
+  "last_updated": "2025-05-29T11:38:47.899908"
+}
