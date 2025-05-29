@@ -5,7 +5,6 @@ from src.webui.components.browser_settings_tab import create_browser_settings_ta
 from src.webui.components.browser_use_agent_tab import create_browser_use_agent_tab
 from src.webui.components.deep_research_agent_tab import create_deep_research_agent_tab
 from src.webui.components.load_save_config_tab import create_load_save_config_tab
-from src.webui.components.twitter_agent_tab import TwitterAgentTab
 from src.webui.components.xagent_tab import XAgentTab
 from src.webui.webui_manager import WebuiManager
 
@@ -91,7 +90,7 @@ def create_ui(theme_name="Ocean"):
                     elem_classes=["tab-header-text"],
                 )
                 with gr.Tabs():
-                    with gr.TabItem("🎭 XAgent (Stealth + Proxy)"):
+                    with gr.TabItem("🎭 XAgent (Stealth + Twitter)"):
                         # Create XAgent tab with browser config
                         browser_config = {
                             "headless": False,
@@ -101,11 +100,6 @@ def create_ui(theme_name="Ocean"):
                         }
                         xagent_tab = XAgentTab(llm=None, browser_config=browser_config)
                         xagent_tab.create_tab()
-                        
-                    with gr.TabItem("🐦 Twitter Agent"):
-                        # Create Twitter agent tab
-                        twitter_agent_tab = TwitterAgentTab(llm=None, browser_config=browser_config)
-                        twitter_agent_tab.create_tab()
 
                     with gr.TabItem("🔍 Deep Research"):
                         create_deep_research_agent_tab(ui_manager)

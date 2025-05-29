@@ -1,14 +1,18 @@
 import asyncio
+import json
 import logging
 import os
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import gradio as gr
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.agent.xagent.xagent import XAgent
 from src.utils import llm_provider
+from src.webui.components.xagent_tab_methods import XAgentTabMethods
+from src.webui.components.xagent_twitter_methods import XAgentTwitterMethods
+from src.webui.components.xagent_loop_methods import XAgentLoopMethods
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +41,27 @@ class XAgentTab:
         self.xagent = None
         self.chat_history = []
         self.current_task_id = None
+        self.profiles = self._load_available_profiles()
+        self.current_profile = "default"
+        self.personas = []
+        self.twitter_initialized = False
+        
+        # Initialize method handlers
+        self.methods = XAgentTabMethods(self)
+        self.twitter_methods = XAgentTwitterMethods(self)
+        self.loop_methods = XAgentLoopMethods(self)
+
+    def _load_available_profiles(self) -> List[str]:
+        """Load available XAgent profiles."""
+        profiles = ["default"]
+        profiles_dir = "./profiles"
+        
+        if os.path.exists(profiles_dir):
+            for item in os.listdir(profiles_dir):
+                if os.path.isdir(os.path.join(profiles_dir, item)) and item != "default":
+                    profiles.append(item)
+                    
+        return profiles
 
     def create_tab(self):
         """Create the XAgent tab UI components."""
@@ -120,9 +145,9 @@ class XAgentTab:
                 label="Download Results", visible=False, elem_id="xagent_results_file"
             )
 
-            # Event handlers
+            # Event handlers for task execution
             run_button.click(
-                fn=self._run_xagent_task,
+                fn=self.methods._run_xagent_task,
                 inputs=[task_input, max_steps, save_results],
                 outputs=[
                     chatbot,
@@ -136,153 +161,106 @@ class XAgentTab:
             )
 
             stop_button.click(
-                fn=self._stop_xagent_task,
+                fn=self.methods._stop_xagent_task,
                 outputs=[status_text, run_button, stop_button],
             )
 
             clear_button.click(
-                fn=self._clear_chat,
+                fn=self.methods._clear_chat,
                 outputs=[chatbot, status_text, task_id_text, results_file],
             )
-
-    async def _initialize_llm_from_settings(self) -> Optional[BaseChatModel]:
-        """Initialize LLM from current settings if not already provided."""
-        if self.llm:
-            return self.llm
-
-        try:
-            # Get settings from environment or defaults
-            provider = os.getenv("LLM_PROVIDER", "openai")
-            model_name = os.getenv("LLM_MODEL_NAME", "gpt-4o")
-            temperature = float(os.getenv("LLM_TEMPERATURE", "0.6"))
-            api_key = os.getenv(f"{provider.upper()}_API_KEY")
-            base_url = os.getenv(f"{provider.upper()}_ENDPOINT")
-
-            if not provider or not model_name:
-                logger.warning("LLM provider or model not configured")
-                return None
-
-            llm = llm_provider.get_llm_model(
-                provider=provider,
-                model_name=model_name,
-                temperature=temperature,
-                base_url=base_url,
-                api_key=api_key,
+            
+            # Event handlers for profile management
+            profile_dropdown.change(
+                fn=self.methods._change_profile,
+                inputs=[profile_dropdown],
+                outputs=[
+                    twitter_username,
+                    twitter_email,
+                    twitter_password,
+                    twitter_totp_secret,
+                    cookies_path,
+                    twitter_status,
+                    action_loops_json,
+                ],
             )
-            return llm
-        except Exception as e:
-            logger.error(f"Failed to initialize LLM: {e}")
-            return None
-
-    def _run_xagent_task(self, task: str, max_steps: int, save_results: bool):
-        """Run XAgent task."""
-        if not task.strip():
-            gr.Warning("Please enter a task description")
-            return (
-                self.chat_history,
-                "Error: No task provided",
-                "",
-                gr.update(interactive=True),
-                gr.update(interactive=False),
-                gr.update(visible=False),
+            
+            refresh_profiles_button.click(
+                fn=self.methods._refresh_profiles,
+                outputs=[profile_dropdown],
             )
-
-        try:
-            # Initialize LLM
-            llm = asyncio.run(self._initialize_llm_from_settings())
-            if not llm:
-                gr.Warning("Failed to initialize LLM. Please check your settings.")
-                return (
-                    self.chat_history,
-                    "Error: LLM initialization failed",
-                    "",
-                    gr.update(interactive=True),
-                    gr.update(interactive=False),
-                    gr.update(visible=False),
-                )
-
-            # Initialize XAgent
-            self.xagent = XAgent(
-                llm=llm,
-                browser_config=self.browser_config,
-                mode="stealth",  # Stealth mode only for this branch
+            
+            create_profile_button.click(
+                fn=self.methods._create_profile_dialog,
+                outputs=[profile_dropdown],
             )
-
-            # Generate task ID
-            self.current_task_id = str(uuid.uuid4())[:8]
-
-            # Update UI
-            self.chat_history.append({"role": "user", "content": task})
-            self.chat_history.append(
-                {
-                    "role": "assistant",
-                    "content": "🎭 Starting XAgent with stealth capabilities...",
-                }
+            
+            # Event handlers for Twitter functionality
+            save_credentials_button.click(
+                fn=self.methods._save_twitter_credentials,
+                inputs=[
+                    profile_dropdown,
+                    twitter_username,
+                    twitter_email,
+                    twitter_password,
+                    twitter_totp_secret,
+                    cookies_path,
+                ],
+                outputs=[twitter_status, current_totp_code],
             )
-
-            # Run the task
-            result = asyncio.run(
-                self.xagent.run(
-                    task=task,
-                    task_id=self.current_task_id,
-                    max_steps=max_steps,
-                    save_dir="./tmp/xagent" if save_results else None,
-                )
+            
+            refresh_totp_button.click(
+                fn=self.methods._refresh_totp_code,
+                outputs=[current_totp_code],
             )
-
-            # Process results
-            if result["status"] == "completed":
-                self.chat_history.append(
-                    {
-                        "role": "assistant",
-                        "content": f"✅ Task completed successfully!\n\nResult: {result.get('result', 'No result available')}",
-                    }
-                )
-                status = "Completed"
-                results_file_update = gr.update(visible=save_results)
-            else:
-                self.chat_history.append(
-                    {
-                        "role": "assistant",
-                        "content": f"❌ Task failed: {result.get('error', 'Unknown error')}",
-                    }
-                )
-                status = f"Failed: {result.get('error', 'Unknown error')}"
-                results_file_update = gr.update(visible=False)
-
-            return (
-                self.chat_history,
-                status,
-                self.current_task_id,
-                gr.update(interactive=True),
-                gr.update(interactive=False),
-                results_file_update,
+            
+            initialize_twitter_button.click(
+                fn=self.methods._initialize_twitter,
+                outputs=[
+                    twitter_status,
+                    tweet_persona,
+                    reply_persona,
+                    twitter_chatbot,
+                ],
             )
-
-        except Exception as e:
-            logger.error(f"Error running XAgent task: {e}")
-            self.chat_history.append(
-                {"role": "assistant", "content": f"❌ Error: {str(e)}"}
+            
+            # Event handlers for Twitter actions
+            tweet_button.click(
+                fn=self.twitter_methods._create_tweet,
+                inputs=[tweet_content, tweet_media, tweet_persona],
+                outputs=[twitter_result_json, twitter_chatbot, twitter_status],
             )
-            return (
-                self.chat_history,
-                f"Error: {str(e)}",
-                "",
-                gr.update(interactive=True),
-                gr.update(interactive=False),
-                gr.update(visible=False),
+            
+            reply_button.click(
+                fn=self.twitter_methods._reply_to_tweet,
+                inputs=[tweet_url, reply_content, reply_media, reply_persona],
+                outputs=[twitter_result_json, twitter_chatbot, twitter_status],
             )
-
-    def _stop_xagent_task(self):
-        """Stop the current XAgent task."""
-        if self.xagent:
-            # Note: XAgent.stop() method would need to be implemented
-            logger.info("Stopping XAgent task")
-
-        return ("Stopped", gr.update(interactive=True), gr.update(interactive=False))
-
-    def _clear_chat(self):
-        """Clear the chat history."""
-        self.chat_history = []
-        self.current_task_id = None
-        return ([], "Ready", "", gr.update(visible=False))
+            
+            follow_button.click(
+                fn=self.twitter_methods._follow_user,
+                inputs=[follow_username],
+                outputs=[twitter_result_json, twitter_chatbot, twitter_status],
+            )
+            
+            bulk_follow_button.click(
+                fn=self.twitter_methods._bulk_follow,
+                inputs=[bulk_follow_usernames],
+                outputs=[twitter_result_json, twitter_chatbot, twitter_status],
+            )
+            
+            # Event handlers for behavioral loops
+            save_loops_button.click(
+                fn=self.loop_methods._save_action_loops,
+                inputs=[profile_dropdown, action_loops_json],
+                outputs=[loop_status],
+            )
+            
+            start_loop_button.click(
+                fn=self.loop_methods._start_action_loop,
+                outputs=[loop_status],
+            )
+            
+            stop_loop_button.click(
+                fn=self.loop_methods._stop_action_loop,
+                outputs=[loop_status],

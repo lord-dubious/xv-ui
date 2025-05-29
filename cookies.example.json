@@ -1,33 +1,23 @@
-[
-  {
-    "name": "auth_token",
-    "value": "YOUR_AUTH_TOKEN_HERE",
-    "domain": ".twitter.com",
-    "path": "/",
-    "expires": -1,
-    "httpOnly": true,
-    "secure": true,
-    "sameSite": "None"
-  },
-  {
-    "name": "ct0",
-    "value": "YOUR_CT0_TOKEN_HERE",
-    "domain": ".twitter.com",
-    "path": "/",
-    "expires": -1,
-    "httpOnly": false,
-    "secure": true,
-    "sameSite": "Lax"
-  },
-  {
-    "name": "twid",
-    "value": "YOUR_TWID_HERE",
-    "domain": ".twitter.com",
-    "path": "/",
-    "expires": -1,
-    "httpOnly": true,
-    "secure": true,
-    "sameSite": "None"
-  }
-]
+{
+  "example_cookie_format": "This is an example of how Twitter cookies should be formatted",
+  "instructions": [
+    "1. Export your Twitter cookies from your browser",
+    "2. Save them as cookies.json in the root directory",
+    "3. The format should be an array of cookie objects",
+    "4. Each cookie should have: name, value, domain, path, etc."
+  ],
+  "cookies": [
+    {
+      "name": "example_cookie",
+      "value": "example_value",
+      "domain": ".twitter.com",
+      "path": "/",
+      "expires": 1234567890,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "note": "This is just an example. Replace with your actual Twitter cookies."
+}
 
