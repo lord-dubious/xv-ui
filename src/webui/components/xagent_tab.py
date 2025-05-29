@@ -163,7 +163,7 @@ class XAgentTab:
                 self._create_twitter_section()
 
             # Behavioral loops section
-            with gr.Accordion("⏱️ Behavioral Loops", open=False):
+            with gr.Accordion("⏱️ Behavioral Loops & Scheduling", open=False):
                 self._create_loops_section()
 
             # Event handlers for task execution
@@ -201,10 +201,228 @@ class XAgentTab:
         if not GRADIO_AVAILABLE:
             return
             
-        gr.Markdown("### Behavioral Loops")
-        gr.Markdown("Configure automated action sequences and scheduling.")
+        gr.Markdown("### Behavioral Loops & Scheduling")
+        gr.Markdown("Configure automated action sequences with advanced scheduling and rate limiting.")
         
-        # Placeholder for loops UI components
-        # This would be expanded with actual loop functionality
-        gr.Markdown("*Behavioral loops functionality will be available when dependencies are installed.*")
-
+        with gr.Row():
+            with gr.Column(scale=2):
+                # Profile selection
+                profile_dropdown = gr.Dropdown(
+                    choices=self.profiles,
+                    value=self.current_profile,
+                    label="Profile",
+                    elem_id="loop_profile_dropdown",
+                )
+                
+                # Loop templates
+                template_dropdown = gr.Dropdown(
+                    choices=["daily_engagement", "content_sharing", "growth_strategy", "weekend_casual"],
+                    label="Load Template",
+                    elem_id="loop_template_dropdown",
+                )
+                
+                load_template_button = gr.Button(
+                    "📋 Load Template",
+                    elem_id="load_template_button",
+                )
+                
+                # Action loops configuration
+                action_loops_json = gr.Code(
+                    label="Action Loops Configuration (JSON)",
+                    language="json",
+                    lines=20,
+                    value='[\n  {\n    "id": "example_loop",\n    "description": "Example automation loop",\n    "interval_seconds": 3600,\n    "rate_limit": {\n      "tweets_per_hour": 5,\n      "follows_per_hour": 10,\n      "min_delay_seconds": 300\n    },\n    "conditions": {\n      "time_range": {"start": "09:00", "end": "18:00"},\n      "days_of_week": [1, 2, 3, 4, 5]\n    },\n    "actions": [\n      {\n        "type": "tweet",\n        "params": {\n          "content": "Good morning! Ready for a productive day! 🌅",\n          "persona": "tech_enthusiast"\n        },\n        "conditions": {\n          "time_range": {"start": "08:00", "end": "10:00"}\n        }\n      },\n      {\n        "type": "delay",\n        "params": {"seconds": 1800}\n      }\n    ]\n  }\n]',
+                    elem_id="action_loops_json",
+                )
+                
+                # Validation and save
+                with gr.Row():
+                    validate_button = gr.Button(
+                        "✅ Validate Config",
+                        elem_id="validate_loops_button",
+                    )
+                    save_loops_button = gr.Button(
+                        "💾 Save Loops",
+                        variant="primary",
+                        elem_id="save_loops_button",
+                    )
+                
+                validation_result = gr.Textbox(
+                    label="Validation Result",
+                    interactive=False,
+                    elem_id="validation_result",
+                )
+            
+            with gr.Column(scale=1):
+                # Loop control
+                gr.Markdown("#### Loop Control")
+                
+                with gr.Row():
+                    start_loop_button = gr.Button(
+                        "▶️ Start Loops",
+                        variant="primary",
+                        elem_id="start_loop_button",
+                    )
+                    stop_loop_button = gr.Button(
+                        "⏹️ Stop Loops",
+                        variant="stop",
+                        elem_id="stop_loop_button",
+                    )
+                
+                loop_status = gr.Textbox(
+                    label="Loop Status",
+                    value="⏸️ Stopped",
+                    interactive=False,
+                    elem_id="loop_status",
+                )
+                
+                # Performance monitoring
+                gr.Markdown("#### Performance Monitor")
+                
+                refresh_stats_button = gr.Button(
+                    "🔄 Refresh Stats",
+                    elem_id="refresh_stats_button",
+                )
+                
+                performance_stats = gr.Code(
+                    label="Performance Statistics",
+                    language="json",
+                    lines=10,
+                    value="{}",
+                    elem_id="performance_stats",
+                )
+                
+                # Rate limiting controls
+                gr.Markdown("#### Rate Limiting")
+                
+                with gr.Row():
+                    tweets_per_hour = gr.Slider(
+                        minimum=1,
+                        maximum=50,
+                        value=5,
+                        step=1,
+                        label="Tweets/Hour",
+                        elem_id="tweets_per_hour",
+                    )
+                    
+                    follows_per_hour = gr.Slider(
+                        minimum=1,
+                        maximum=100,
+                        value=20,
+                        step=1,
+                        label="Follows/Hour",
+                        elem_id="follows_per_hour",
+                    )
+                
+                min_delay_seconds = gr.Slider(
+                    minimum=30,
+                    maximum=1800,
+                    value=300,
+                    step=30,
+                    label="Min Delay (seconds)",
+                    elem_id="min_delay_seconds",
+                )
+                
+                update_limits_button = gr.Button(
+                    "⚙️ Update Limits",
+                    elem_id="update_limits_button",
+                )
+        
+        # Advanced scheduling section
+        with gr.Accordion("⏰ Advanced Scheduling", open=False):
+            gr.Markdown("#### Time-based Triggers & Conditional Logic")
+            
+            with gr.Row():
+                with gr.Column():
+                    # Time range settings
+                    start_time = gr.Textbox(
+                        label="Start Time (HH:MM)",
+                        value="09:00",
+                        elem_id="schedule_start_time",
+                    )
+                    
+                    end_time = gr.Textbox(
+                        label="End Time (HH:MM)",
+                        value="18:00",
+                        elem_id="schedule_end_time",
+                    )
+                    
+                    # Days of week
+                    days_of_week = gr.CheckboxGroup(
+                        choices=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                        value=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                        label="Active Days",
+                        elem_id="schedule_days",
+                    )
+                
+                with gr.Column():
+                    # Conditional logic
+                    max_actions_per_day = gr.Slider(
+                        minimum=1,
+                        maximum=200,
+                        value=50,
+                        step=1,
+                        label="Max Actions/Day",
+                        elem_id="max_actions_per_day",
+                    )
+                    
+                    follower_count_condition = gr.Slider(
+                        minimum=0,
+                        maximum=10000,
+                        value=5000,
+                        step=100,
+                        label="Max Follower Count",
+                        elem_id="follower_count_condition",
+                    )
+                    
+                    adaptive_delays = gr.Checkbox(
+                        label="Enable Adaptive Delays",
+                        value=True,
+                        elem_id="adaptive_delays",
+                    )
+        
+        # Event handlers for loops functionality
+        if GRADIO_AVAILABLE:
+            # Template loading
+            load_template_button.click(
+                fn=self.loop_methods._load_loop_template,
+                inputs=[template_dropdown],
+                outputs=[action_loops_json],
+            )
+            
+            # Validation
+            validate_button.click(
+                fn=self.loop_methods._validate_loop_config,
+                inputs=[action_loops_json],
+                outputs=[validation_result],
+            )
+            
+            # Loop management
+            save_loops_button.click(
+                fn=self.loop_methods._save_action_loops,
+                inputs=[profile_dropdown, action_loops_json],
+                outputs=[loop_status],
+            )
+            
+            start_loop_button.click(
+                fn=self.loop_methods._start_action_loop,
+                outputs=[loop_status],
+            )
+            
+            stop_loop_button.click(
+                fn=self.loop_methods._stop_action_loop,
+                outputs=[loop_status],
+            )
+            
+            # Performance monitoring
+            refresh_stats_button.click(
+                fn=self.loop_methods._get_performance_stats,
+                outputs=[performance_stats],
+            )
+            
+            # Rate limiting controls
+            update_limits_button.click(
+                fn=self.loop_methods._update_rate_limits,
+                inputs=[tweets_per_hour, follows_per_hour, min_delay_seconds],
+                outputs=[loop_status],
+            )

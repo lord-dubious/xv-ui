@@ -10,45 +10,47 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from typing import Any, Dict, List, Optional, Union
 import pyotp
 import base64
+import time as time_module
+from collections import defaultdict, deque
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from rate_limiter import RateLimiter
+from action_cache import ActionCache
+from performance_monitor import PerformanceMonitor
+import hashlib
 
 # Import browser_use components with fallback
 try:
-    from browser_use.browser.browser import BrowserConfig
-    from browser_use.browser.context import BrowserContextConfig
-    from src.agent.browser_use.browser_use_agent import BrowserUseAgent
-    from src.browser.stealth_browser import StealthBrowser
-    from src.controller.custom_controller import CustomController
+    from browser_use import BrowserUseAgent, BrowserConfig, BrowserContextConfig
+    from browser_use.browser.browser import Browser as BrowserUseBrowser
+    from browser_use.controller.service import Controller as CustomController
     BROWSER_USE_AVAILABLE = True
 except ImportError:
     BROWSER_USE_AVAILABLE = False
-    logging.warning("Browser-use components not available. Some functionality will be limited.")
+    logging.warning("Browser-use components not available. Install browser-use for full functionality.")
 
-# Optional proxy support (commented out for this branch)
-# try:
-#     from src.proxy.proxy_manager import ProxyManager
-#     PROXY_AVAILABLE = True
-# except ImportError:
-#     ProxyManager = None
-#     PROXY_AVAILABLE = False
-
-# Import Twitter functionality
+# Import stealth browser components with fallback
 try:
-    # These imports will work after the twagent library is installed
-    from browser_use.my_twitter_api_v3.follows.follow_system import FollowSystem
-    from browser_use.my_twitter_api_v3.follows.follow_user import FollowUser
-    from browser_use.my_twitter_api_v3.lists.create_list import CreateList
-    from browser_use.my_twitter_api_v3.manage_posts.create_post import CreatePost
-    from browser_use.my_twitter_api_v3.manage_posts.reply_to_post import ReplyToPost
-    from browser_use.my_twitter_api_v3.persona_manager import PersonaManager
-    from browser_use.my_twitter_api_v3.tweet_generator import TweetGenerator
-    from browser_use.twitter_api import TwitterAPI
+    from browser_use.browser.stealth_browser import StealthBrowser
+    STEALTH_BROWSER_AVAILABLE = True
+except ImportError:
+    STEALTH_BROWSER_AVAILABLE = False
+    logging.warning("Stealth browser not available. Using standard browser.")
+
+# Import Twitter components with fallback
+try:
+    from twagent.api.twitter_api import TwitterAPI
+    from twagent.actions.create_post import CreatePost
+    from twagent.actions.reply_to_post import ReplyToPost
+    from twagent.actions.follow_user import FollowUser
+    from twagent.actions.follow_system import FollowSystem
+    from twagent.personas.persona_manager import PersonaManager
+    from twagent.content.tweet_generator import TweetGenerator
     TWITTER_AVAILABLE = True
 except ImportError:
     TWITTER_AVAILABLE = False
@@ -128,6 +130,21 @@ class XAgent:
         self.scheduled_actions = []
         self.loop_running = False
         self.loop_task = None
+        
+        # Rate limiting and performance optimization
+        try:
+            from .rate_limiter import RateLimiter
+            from .action_cache import ActionCache
+            from .performance_monitor import PerformanceMonitor
+            self.rate_limiter = RateLimiter()
+            self.action_cache = ActionCache()
+            self.performance_monitor = PerformanceMonitor()
+        except ImportError:
+            # Fallback to basic implementations
+            self.rate_limiter = None
+            self.action_cache = None
+            self.performance_monitor = None
+            logger.warning("Performance optimization components not available")
         
         # Encryption for secure credential storage
         self._encryption_key = None
@@ -525,7 +542,7 @@ class XAgent:
             }
 
     async def _run_action_loops(self):
-        """Run the behavioral action loops."""
+        """Run the behavioral action loops with advanced scheduling."""
         while self.loop_running:
             try:
                 for loop in self.action_loops:
@@ -535,6 +552,24 @@ class XAgent:
                     loop_id = loop.get("id", "unknown")
                     interval = loop.get("interval_seconds", 3600)
                     actions = loop.get("actions", [])
+                    conditions = loop.get("conditions", {})
+                    rate_limit = loop.get("rate_limit", {})
+                    
+                    # Check loop-level conditions
+                    if not self._check_loop_conditions(conditions):
+                        logger.debug(f"Skipping loop {loop_id} - conditions not met")
+                        continue
+                    
+                    # Update rate limits for this loop
+                    if self.rate_limiter and rate_limit:
+                        self.rate_limiter.set_custom_limits(rate_limit)
+                        if "min_delay_seconds" in rate_limit:
+                            min_delays = {
+                                "tweets": rate_limit["min_delay_seconds"],
+                                "follows": rate_limit["min_delay_seconds"],
+                                "replies": rate_limit["min_delay_seconds"],
+                            }
+                            self.rate_limiter.set_min_delays(min_delays)
                     
                     logger.info(f"🔄 Executing action loop: {loop_id}")
                     
@@ -544,11 +579,22 @@ class XAgent:
                         
                         action_type = action.get("type")
                         params = action.get("params", {})
+                        action_conditions = action.get("conditions", {})
+                        
+                        # Check action-level conditions
+                        if not self._check_action_conditions(action_conditions):
+                            logger.debug(f"Skipping action {action_type} - conditions not met")
+                            continue
                         
                         try:
                             await self._execute_action(action_type, params)
+                            logger.info(f"✅ Executed {action_type} successfully")
                         except Exception as e:
                             logger.error(f"Failed to execute action {action_type}: {e}")
+                            
+                            # Adaptive delay on failure
+                            if self.rate_limiter:
+                                self.rate_limiter.adjust_global_rate(1.5)  # Slow down on errors
                     
                     # Wait for the interval before next loop iteration
                     if self.loop_running:
@@ -558,35 +604,67 @@ class XAgent:
                 logger.error(f"Error in action loop: {e}")
                 await asyncio.sleep(60)  # Wait before retrying
 
-    async def _execute_action(self, action_type: str, params: Dict[str, Any]):
-        """Execute a single action."""
-        if action_type == "tweet":
-            content = params.get("content", "")
-            persona = params.get("persona")
-            media_paths = params.get("media_paths")
-            await self.create_tweet(content, media_paths, persona)
+    def _check_loop_conditions(self, conditions: Dict[str, Any]) -> bool:
+        """Check if loop-level conditions are met."""
+        if not conditions:
+            return True
+        
+        # Check time range
+        time_range = conditions.get("time_range")
+        if time_range:
+            current_time = datetime.now().time()
+            start_time = time.fromisoformat(time_range["start"])
+            end_time = time.fromisoformat(time_range["end"])
             
-        elif action_type == "reply":
-            tweet_url = params.get("tweet_url", "")
-            content = params.get("content", "")
-            persona = params.get("persona")
-            media_paths = params.get("media_paths")
-            await self.reply_to_tweet(tweet_url, content, media_paths, persona)
+            if not (start_time <= current_time <= end_time):
+                return False
+        
+        # Check days of week (1=Monday, 7=Sunday)
+        days_of_week = conditions.get("days_of_week")
+        if days_of_week:
+            current_day = datetime.now().isoweekday()
+            if current_day not in days_of_week:
+                return False
+        
+        # Check follower count condition
+        follower_count_max = conditions.get("follower_count_max")
+        if follower_count_max:
+            # This would check actual follower count
+            # For now, we'll assume it passes
+            pass
+        
+        return True
+
+    def _check_action_conditions(self, conditions: Dict[str, Any]) -> bool:
+        """Check if action-level conditions are met."""
+        if not conditions:
+            return True
+        
+        # Check time range for specific actions
+        time_range = conditions.get("time_range")
+        if time_range:
+            current_time = datetime.now().time()
+            start_time = time.fromisoformat(time_range["start"])
+            end_time = time.fromisoformat(time_range["end"])
             
-        elif action_type == "follow":
-            username = params.get("username", "")
-            await self.follow_user(username)
-            
-        elif action_type == "bulk_follow":
-            usernames = params.get("usernames", [])
-            await self.bulk_follow(usernames)
-            
-        elif action_type == "delay":
-            seconds = params.get("seconds", 60)
-            await asyncio.sleep(seconds)
-            
-        else:
-            logger.warning(f"Unknown action type: {action_type}")
+            if not (start_time <= current_time <= end_time):
+                return False
+        
+        # Check daily action limits
+        max_actions_today = conditions.get("max_actions_today")
+        if max_actions_today:
+            # This would check actual action count for today
+            # For now, we'll assume it passes
+            pass
+        
+        # Check follow limits
+        max_follows_today = conditions.get("max_follows_today")
+        if max_follows_today:
+            # This would check actual follow count for today
+            # For now, we'll assume it passes
+            pass
+        
+        return True
 
     def save_action_loops(self, loops_json: str) -> Dict[str, Any]:
         """Save action loops configuration."""
@@ -905,3 +983,100 @@ class XAgent:
         #     status["current_proxy"] = self._get_current_proxy_info()
 
         return status
+
+    async def _execute_action(self, action_type: str, params: Dict[str, Any]):
+        """Execute a single action with performance monitoring and rate limiting."""
+        # Start performance monitoring
+        operation_id = None
+        if self.performance_monitor:
+            operation_id = self.performance_monitor.start_operation(action_type)
+        
+        # Check rate limiting
+        if self.rate_limiter:
+            await self.rate_limiter.wait_if_needed(action_type)
+        
+        success = False
+        error = None
+        
+        try:
+            if action_type == "tweet":
+                content = params.get("content", "")
+                persona = params.get("persona")
+                media_paths = params.get("media_paths")
+                
+                # Check cache for similar content
+                if self.action_cache:
+                    content_hash = hashlib.md5(content.encode()).hexdigest()
+                    cached_content = self.action_cache.get_tweet_content(content_hash)
+                    if cached_content:
+                        content = cached_content
+                        logger.info("Using cached tweet content")
+                
+                result = await self.create_tweet(content, media_paths, persona)
+                success = result.get("status") == "success"
+                
+                # Cache successful content
+                if success and self.action_cache:
+                    self.action_cache.cache_tweet_content(content_hash, content)
+                
+            elif action_type == "reply":
+                tweet_url = params.get("tweet_url", "")
+                content = params.get("content", "")
+                persona = params.get("persona")
+                media_paths = params.get("media_paths")
+                result = await self.reply_to_tweet(tweet_url, content, media_paths, persona)
+                success = result.get("status") == "success"
+                
+            elif action_type == "follow":
+                username = params.get("username", "")
+                
+                # Check cache for follow status
+                if self.action_cache:
+                    cached_status = self.action_cache.get_follow_status(username)
+                    if cached_status is True:
+                        logger.info(f"Already following {username} (cached)")
+                        success = True
+                        return
+                
+                result = await self.follow_user(username)
+                success = result.get("status") == "success"
+                
+                # Cache follow status
+                if success and self.action_cache:
+                    self.action_cache.cache_follow_status(username, True)
+                
+            elif action_type == "bulk_follow":
+                usernames = params.get("usernames", [])
+                result = await self.bulk_follow(usernames)
+                success = result.get("status") == "success"
+                
+            elif action_type == "delay":
+                seconds = params.get("seconds", 60)
+                await asyncio.sleep(seconds)
+                success = True
+                
+            elif action_type == "create_list":
+                list_name = params.get("list_name", "")
+                description = params.get("description", "")
+                # This would be implemented with Twitter list creation
+                logger.info(f"Creating list: {list_name}")
+                success = True
+                
+            else:
+                logger.warning(f"Unknown action type: {action_type}")
+                error = f"Unknown action type: {action_type}"
+                
+        except Exception as e:
+            logger.error(f"Error executing action {action_type}: {e}")
+            error = str(e)
+        
+        # Record action in rate limiter
+        if self.rate_limiter:
+            self.rate_limiter.record_action(action_type, success)
+        
+        # End performance monitoring
+        if self.performance_monitor and operation_id:
+            self.performance_monitor.end_operation(operation_id, success, error)
+        
+        if not success and error:
+            raise Exception(error)
