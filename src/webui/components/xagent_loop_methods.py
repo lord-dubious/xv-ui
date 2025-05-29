@@ -8,6 +8,7 @@ separated for better code organization and maintainability.
 import asyncio
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -557,3 +558,203 @@ class XAgentLoopMethods:
             return gr.update(visible=True), gr.update(visible=False)
         else:  # Fixed Intervals
             return gr.update(visible=False), gr.update(visible=True)
+
+    def _save_all_configuration(
+        self,
+        # Twitter settings
+        cookies_path: str,
+        config_path: str,
+        headless: bool,
+        stealth_mode: bool,
+        user_agent: str,
+        viewport_width: int,
+        viewport_height: int,
+        timeout: int,
+        # Performance settings
+        cache_max_size: int,
+        cache_ttl: int,
+        history_size: int,
+        cpu_threshold: int,
+        memory_threshold: int,
+        monitoring_interval: int,
+        # Rate limiting settings
+        tweets_limit: int,
+        follows_limit: int,
+        likes_limit: int,
+        tweet_delay: int,
+        follow_delay: int,
+        like_delay: int,
+        # Advanced settings
+        encryption_enabled: bool,
+        auto_save_enabled: bool,
+        debug_mode: bool,
+        verbose_logging: bool,
+        max_retries: int,
+        retry_delay: int,
+        session_timeout: int,
+    ):
+        """Save all configuration settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            # Update Twitter configuration
+            twitter_config = {
+                "cookies_path": cookies_path,
+                "config_path": config_path,
+                "headless": headless,
+                "stealth_mode": stealth_mode,
+                "user_agent": user_agent if user_agent else None,
+                "viewport": {"width": viewport_width, "height": viewport_height},
+                "timeout": timeout,
+            }
+            
+            # Update performance settings
+            if self.tab.xagent.action_cache:
+                self.tab.xagent.action_cache.max_size = cache_max_size
+                self.tab.xagent.action_cache.default_ttl = cache_ttl
+            
+            if self.tab.xagent.performance_monitor:
+                self.tab.xagent.performance_monitor.history_size = history_size
+                self.tab.xagent.performance_monitor.thresholds.update({
+                    "cpu_usage": cpu_threshold,
+                    "memory_usage": memory_threshold,
+                })
+            
+            # Update rate limiting settings
+            if self.tab.xagent.rate_limiter:
+                default_limits = {
+                    "tweets": tweets_limit,
+                    "follows": follows_limit,
+                    "likes": likes_limit,
+                }
+                self.tab.xagent.rate_limiter.default_limits.update(default_limits)
+                
+                min_delays = {
+                    "tweets": tweet_delay,
+                    "follows": follow_delay,
+                    "likes": like_delay,
+                }
+                self.tab.xagent.rate_limiter.min_delays.update(min_delays)
+            
+            # Update advanced settings
+            advanced_settings = {
+                "encryption_enabled": encryption_enabled,
+                "auto_save_enabled": auto_save_enabled,
+                "debug_mode": debug_mode,
+                "verbose_logging": verbose_logging,
+                "max_retries": max_retries,
+                "retry_delay": retry_delay,
+                "session_timeout": session_timeout,
+            }
+            
+            # Save configuration to file
+            if auto_save_enabled:
+                self.tab.xagent._save_profile_config()
+            
+            return "✅ All configuration settings saved successfully!"
+            
+        except Exception as e:
+            logger.error(f"Error saving configuration: {e}")
+            return f"❌ Error saving configuration: {str(e)}"
+
+    def _load_complete_configuration(self):
+        """Load and display complete configuration."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            config = {
+                "twitter_config": getattr(self.tab.xagent, 'twitter_config', {}),
+                "module_settings": getattr(self.tab.xagent, 'module_settings', {}),
+                "time_interval_settings": getattr(self.tab.xagent, 'time_interval_settings', {}),
+                "rate_limiter_settings": self.tab.xagent.rate_limiter.get_statistics() if self.tab.xagent.rate_limiter else {},
+                "cache_settings": self.tab.xagent.action_cache.get_statistics() if self.tab.xagent.action_cache else {},
+                "performance_settings": self.tab.xagent.performance_monitor.export_performance_data() if self.tab.xagent.performance_monitor else {},
+                "action_loops": getattr(self.tab.xagent, 'action_loops', []),
+            }
+            
+            return json.dumps(config, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error loading configuration: {e}")
+            return f"❌ Error loading configuration: {str(e)}"
+
+    def _reset_to_defaults(self):
+        """Reset all settings to default values."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            # Reset module settings
+            self.tab.xagent.module_settings = {
+                "rate_limiting_enabled": True,
+                "caching_enabled": True,
+                "performance_monitoring_enabled": True,
+                "adaptive_delays_enabled": True,
+                "burst_protection_enabled": True,
+            }
+            
+            # Reset time interval settings
+            self.tab.xagent.time_interval_settings = {
+                "use_fixed_intervals": False,
+                "interval_minutes": 60,
+                "randomize_intervals": True,
+                "randomization_factor": 0.2,
+            }
+            
+            # Reset rate limiter to defaults
+            if self.tab.xagent.rate_limiter:
+                self.tab.xagent.rate_limiter.custom_limits.clear()
+                self.tab.xagent.rate_limiter.adaptive_delays.clear()
+                self.tab.xagent.rate_limiter.base_delay_multiplier = 1.0
+            
+            # Clear action loops
+            self.tab.xagent.action_loops = []
+            
+            return "✅ All settings reset to defaults"
+            
+        except Exception as e:
+            logger.error(f"Error resetting configuration: {e}")
+            return f"❌ Error resetting configuration: {str(e)}"
+
+    def _export_configuration(self):
+        """Export complete configuration as downloadable JSON."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            config = {
+                "export_timestamp": datetime.now().isoformat(),
+                "version": "1.0",
+                "twitter_config": getattr(self.tab.xagent, 'twitter_config', {}),
+                "module_settings": getattr(self.tab.xagent, 'module_settings', {}),
+                "time_interval_settings": getattr(self.tab.xagent, 'time_interval_settings', {}),
+                "action_loops": getattr(self.tab.xagent, 'action_loops', []),
+                "rate_limiter_config": {
+                    "default_limits": self.tab.xagent.rate_limiter.default_limits if self.tab.xagent.rate_limiter else {},
+                    "custom_limits": self.tab.xagent.rate_limiter.custom_limits if self.tab.xagent.rate_limiter else {},
+                    "min_delays": self.tab.xagent.rate_limiter.min_delays if self.tab.xagent.rate_limiter else {},
+                },
+                "cache_config": {
+                    "max_size": self.tab.xagent.action_cache.max_size if self.tab.xagent.action_cache else 1000,
+                    "default_ttl": self.tab.xagent.action_cache.default_ttl if self.tab.xagent.action_cache else 3600,
+                    "category_ttls": self.tab.xagent.action_cache.category_ttls if self.tab.xagent.action_cache else {},
+                },
+            }
+            
+            # Save to file
+            export_filename = f"xagent_config_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            export_path = os.path.join("./exports", export_filename)
+            
+            # Create exports directory if it doesn't exist
+            os.makedirs("./exports", exist_ok=True)
+            
+            with open(export_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            return f"✅ Configuration exported to: {export_path}"
+            
+        except Exception as e:
+            logger.error(f"Error exporting configuration: {e}")
+            return f"❌ Error exporting configuration: {str(e)}"

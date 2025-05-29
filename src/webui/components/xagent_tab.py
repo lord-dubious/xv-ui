@@ -216,6 +216,289 @@ class XAgentTab:
                     elem_id="module_status",
                 )
 
+            # Complete configuration management
+            with gr.Accordion("⚙️ Complete Configuration Manager", open=False):
+                gr.Markdown("#### All System Settings in One Place")
+                
+                with gr.Tabs():
+                    # Twitter Configuration Tab
+                    with gr.Tab("🐦 Twitter Settings"):
+                        with gr.Row():
+                            with gr.Column():
+                                twitter_cookies_path = gr.Textbox(
+                                    label="Cookies File Path",
+                                    value="./cookies.json",
+                                    elem_id="twitter_cookies_path",
+                                )
+                                
+                                twitter_config_path = gr.Textbox(
+                                    label="Config File Path", 
+                                    value="./config.json",
+                                    elem_id="twitter_config_path",
+                                )
+                                
+                                twitter_headless = gr.Checkbox(
+                                    label="Headless Mode",
+                                    value=True,
+                                    elem_id="twitter_headless",
+                                )
+                                
+                                twitter_stealth_mode = gr.Checkbox(
+                                    label="Stealth Mode",
+                                    value=True,
+                                    elem_id="twitter_stealth_mode",
+                                )
+                            
+                            with gr.Column():
+                                twitter_user_agent = gr.Textbox(
+                                    label="Custom User Agent",
+                                    placeholder="Leave empty for default",
+                                    elem_id="twitter_user_agent",
+                                )
+                                
+                                twitter_viewport_width = gr.Slider(
+                                    minimum=800,
+                                    maximum=1920,
+                                    value=1280,
+                                    step=10,
+                                    label="Viewport Width",
+                                    elem_id="twitter_viewport_width",
+                                )
+                                
+                                twitter_viewport_height = gr.Slider(
+                                    minimum=600,
+                                    maximum=1080,
+                                    value=720,
+                                    step=10,
+                                    label="Viewport Height",
+                                    elem_id="twitter_viewport_height",
+                                )
+                                
+                                twitter_timeout = gr.Slider(
+                                    minimum=5,
+                                    maximum=120,
+                                    value=30,
+                                    step=5,
+                                    label="Page Timeout (seconds)",
+                                    elem_id="twitter_timeout",
+                                )
+                    
+                    # Performance Configuration Tab
+                    with gr.Tab("⚡ Performance Settings"):
+                        with gr.Row():
+                            with gr.Column():
+                                cache_max_size = gr.Slider(
+                                    minimum=100,
+                                    maximum=10000,
+                                    value=1000,
+                                    step=100,
+                                    label="Cache Max Size",
+                                    elem_id="cache_max_size",
+                                )
+                                
+                                cache_default_ttl = gr.Slider(
+                                    minimum=300,
+                                    maximum=7200,
+                                    value=3600,
+                                    step=300,
+                                    label="Cache TTL (seconds)",
+                                    elem_id="cache_default_ttl",
+                                )
+                                
+                                performance_history_size = gr.Slider(
+                                    minimum=100,
+                                    maximum=5000,
+                                    value=1000,
+                                    step=100,
+                                    label="Performance History Size",
+                                    elem_id="performance_history_size",
+                                )
+                            
+                            with gr.Column():
+                                cpu_threshold = gr.Slider(
+                                    minimum=50,
+                                    maximum=95,
+                                    value=80,
+                                    step=5,
+                                    label="CPU Usage Threshold (%)",
+                                    elem_id="cpu_threshold",
+                                )
+                                
+                                memory_threshold = gr.Slider(
+                                    minimum=50,
+                                    maximum=95,
+                                    value=85,
+                                    step=5,
+                                    label="Memory Usage Threshold (%)",
+                                    elem_id="memory_threshold",
+                                )
+                                
+                                monitoring_interval = gr.Slider(
+                                    minimum=1,
+                                    maximum=30,
+                                    value=5,
+                                    step=1,
+                                    label="Monitoring Interval (seconds)",
+                                    elem_id="monitoring_interval",
+                                )
+                    
+                    # Rate Limiting Configuration Tab
+                    with gr.Tab("🛡️ Rate Limiting Settings"):
+                        with gr.Row():
+                            with gr.Column():
+                                gr.Markdown("**Default Rate Limits (per hour)**")
+                                
+                                default_tweets_limit = gr.Slider(
+                                    minimum=1,
+                                    maximum=100,
+                                    value=50,
+                                    step=1,
+                                    label="Default Tweets Limit",
+                                    elem_id="default_tweets_limit",
+                                )
+                                
+                                default_follows_limit = gr.Slider(
+                                    minimum=1,
+                                    maximum=500,
+                                    value=400,
+                                    step=10,
+                                    label="Default Follows Limit",
+                                    elem_id="default_follows_limit",
+                                )
+                                
+                                default_likes_limit = gr.Slider(
+                                    minimum=1,
+                                    maximum=2000,
+                                    value=1000,
+                                    step=50,
+                                    label="Default Likes Limit",
+                                    elem_id="default_likes_limit",
+                                )
+                            
+                            with gr.Column():
+                                gr.Markdown("**Minimum Delays (seconds)**")
+                                
+                                min_tweet_delay = gr.Slider(
+                                    minimum=30,
+                                    maximum=600,
+                                    value=60,
+                                    step=10,
+                                    label="Min Tweet Delay",
+                                    elem_id="min_tweet_delay",
+                                )
+                                
+                                min_follow_delay = gr.Slider(
+                                    minimum=10,
+                                    maximum=300,
+                                    value=30,
+                                    step=5,
+                                    label="Min Follow Delay",
+                                    elem_id="min_follow_delay",
+                                )
+                                
+                                min_like_delay = gr.Slider(
+                                    minimum=5,
+                                    maximum=60,
+                                    value=10,
+                                    step=1,
+                                    label="Min Like Delay",
+                                    elem_id="min_like_delay",
+                                )
+                    
+                    # Advanced Configuration Tab
+                    with gr.Tab("🔧 Advanced Settings"):
+                        with gr.Row():
+                            with gr.Column():
+                                encryption_enabled = gr.Checkbox(
+                                    label="Enable Credential Encryption",
+                                    value=True,
+                                    elem_id="encryption_enabled",
+                                )
+                                
+                                auto_save_enabled = gr.Checkbox(
+                                    label="Auto-save Configurations",
+                                    value=True,
+                                    elem_id="auto_save_enabled",
+                                )
+                                
+                                debug_mode = gr.Checkbox(
+                                    label="Debug Mode",
+                                    value=False,
+                                    elem_id="debug_mode",
+                                )
+                                
+                                verbose_logging = gr.Checkbox(
+                                    label="Verbose Logging",
+                                    value=False,
+                                    elem_id="verbose_logging",
+                                )
+                            
+                            with gr.Column():
+                                max_retries = gr.Slider(
+                                    minimum=1,
+                                    maximum=10,
+                                    value=3,
+                                    step=1,
+                                    label="Max Retries",
+                                    elem_id="max_retries",
+                                )
+                                
+                                retry_delay = gr.Slider(
+                                    minimum=1,
+                                    maximum=60,
+                                    value=5,
+                                    step=1,
+                                    label="Retry Delay (seconds)",
+                                    elem_id="retry_delay",
+                                )
+                                
+                                session_timeout = gr.Slider(
+                                    minimum=300,
+                                    maximum=7200,
+                                    value=1800,
+                                    step=300,
+                                    label="Session Timeout (seconds)",
+                                    elem_id="session_timeout",
+                                )
+                
+                # Configuration actions
+                with gr.Row():
+                    save_all_config_button = gr.Button(
+                        "💾 Save All Settings",
+                        variant="primary",
+                        elem_id="save_all_config_button",
+                    )
+                    
+                    load_config_button = gr.Button(
+                        "📂 Load Configuration",
+                        elem_id="load_config_button",
+                    )
+                    
+                    reset_config_button = gr.Button(
+                        "🔄 Reset to Defaults",
+                        elem_id="reset_config_button",
+                    )
+                    
+                    export_config_button = gr.Button(
+                        "📤 Export Config",
+                        elem_id="export_config_button",
+                    )
+                
+                config_status = gr.Textbox(
+                    label="Configuration Status",
+                    interactive=False,
+                    elem_id="config_status",
+                )
+                
+                # Complete configuration viewer
+                complete_config_viewer = gr.Code(
+                    label="Complete Configuration (Read-Only)",
+                    language="json",
+                    lines=15,
+                    value="{}",
+                    elem_id="complete_config_viewer",
+                )
+
             # Event handlers for task execution
             run_button.click(
                 fn=self.methods._run_xagent_task,
@@ -542,4 +825,39 @@ class XAgentTab:
             self.interface.load(
                 fn=self.loop_methods._get_module_status,
                 outputs=[module_status],
+            )
+            
+            # Complete configuration management handlers
+            save_all_config_button.click(
+                fn=self.loop_methods._save_all_configuration,
+                inputs=[
+                    # Twitter settings
+                    twitter_cookies_path, twitter_config_path, twitter_headless, twitter_stealth_mode,
+                    twitter_user_agent, twitter_viewport_width, twitter_viewport_height, twitter_timeout,
+                    # Performance settings
+                    cache_max_size, cache_default_ttl, performance_history_size,
+                    cpu_threshold, memory_threshold, monitoring_interval,
+                    # Rate limiting settings
+                    default_tweets_limit, default_follows_limit, default_likes_limit,
+                    min_tweet_delay, min_follow_delay, min_like_delay,
+                    # Advanced settings
+                    encryption_enabled, auto_save_enabled, debug_mode, verbose_logging,
+                    max_retries, retry_delay, session_timeout,
+                ],
+                outputs=[config_status],
+            )
+            
+            load_config_button.click(
+                fn=self.loop_methods._load_complete_configuration,
+                outputs=[complete_config_viewer],
+            )
+            
+            reset_config_button.click(
+                fn=self.loop_methods._reset_to_defaults,
+                outputs=[config_status],
+            )
+            
+            export_config_button.click(
+                fn=self.loop_methods._export_configuration,
+                outputs=[config_status],
             )
