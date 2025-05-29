@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import uuid
+import random
 from datetime import datetime, time, timedelta
 from typing import Any, Dict, List, Optional, Union
 import pyotp
@@ -19,9 +20,6 @@ from collections import defaultdict, deque
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from rate_limiter import RateLimiter
-from action_cache import ActionCache
-from performance_monitor import PerformanceMonitor
 import hashlib
 
 # Import browser_use components with fallback
@@ -145,6 +143,23 @@ class XAgent:
             self.action_cache = None
             self.performance_monitor = None
             logger.warning("Performance optimization components not available")
+        
+        # Module toggles for user control
+        self.module_settings = {
+            "rate_limiting_enabled": True,
+            "caching_enabled": True,
+            "performance_monitoring_enabled": True,
+            "adaptive_delays_enabled": True,
+            "burst_protection_enabled": True,
+        }
+        
+        # Time interval settings
+        self.time_interval_settings = {
+            "use_fixed_intervals": False,  # If True, use fixed intervals instead of time ranges
+            "interval_minutes": 60,        # Fixed interval in minutes
+            "randomize_intervals": True,   # Add randomization to intervals
+            "randomization_factor": 0.2,   # ±20% randomization
+        }
         
         # Encryption for secure credential storage
         self._encryption_key = None
@@ -609,15 +624,38 @@ class XAgent:
         if not conditions:
             return True
         
-        # Check time range
-        time_range = conditions.get("time_range")
-        if time_range:
-            current_time = datetime.now().time()
-            start_time = time.fromisoformat(time_range["start"])
-            end_time = time.fromisoformat(time_range["end"])
+        # Check time range vs fixed intervals
+        if self.time_interval_settings["use_fixed_intervals"]:
+            # Use fixed interval logic
+            interval_minutes = self.time_interval_settings["interval_minutes"]
+            randomize = self.time_interval_settings["randomize_intervals"]
+            randomization_factor = self.time_interval_settings["randomization_factor"]
             
-            if not (start_time <= current_time <= end_time):
+            # Calculate next execution time based on intervals
+            current_time = datetime.now()
+            minutes_since_midnight = current_time.hour * 60 + current_time.minute
+            
+            # Check if we're at an interval boundary
+            if randomize:
+                # Add randomization to interval
+                random_offset = int(interval_minutes * randomization_factor * (0.5 - random.random()))
+                effective_interval = interval_minutes + random_offset
+            else:
+                effective_interval = interval_minutes
+            
+            # Check if current time aligns with interval
+            if minutes_since_midnight % effective_interval != 0:
                 return False
+        else:
+            # Use traditional time range logic
+            time_range = conditions.get("time_range")
+            if time_range:
+                current_time = datetime.now().time()
+                start_time = time.fromisoformat(time_range["start"])
+                end_time = time.fromisoformat(time_range["end"])
+                
+                if not (start_time <= current_time <= end_time):
+                    return False
         
         # Check days of week (1=Monday, 7=Sunday)
         days_of_week = conditions.get("days_of_week")
@@ -986,13 +1024,13 @@ class XAgent:
 
     async def _execute_action(self, action_type: str, params: Dict[str, Any]):
         """Execute a single action with performance monitoring and rate limiting."""
-        # Start performance monitoring
+        # Start performance monitoring (if enabled)
         operation_id = None
-        if self.performance_monitor:
+        if self.performance_monitor and self.module_settings.get("performance_monitoring_enabled", True):
             operation_id = self.performance_monitor.start_operation(action_type)
         
-        # Check rate limiting
-        if self.rate_limiter:
+        # Check rate limiting (if enabled)
+        if self.rate_limiter and self.module_settings.get("rate_limiting_enabled", True):
             await self.rate_limiter.wait_if_needed(action_type)
         
         success = False
@@ -1004,8 +1042,8 @@ class XAgent:
                 persona = params.get("persona")
                 media_paths = params.get("media_paths")
                 
-                # Check cache for similar content
-                if self.action_cache:
+                # Check cache for similar content (if caching enabled)
+                if self.action_cache and self.module_settings.get("caching_enabled", True):
                     content_hash = hashlib.md5(content.encode()).hexdigest()
                     cached_content = self.action_cache.get_tweet_content(content_hash)
                     if cached_content:
@@ -1015,8 +1053,8 @@ class XAgent:
                 result = await self.create_tweet(content, media_paths, persona)
                 success = result.get("status") == "success"
                 
-                # Cache successful content
-                if success and self.action_cache:
+                # Cache successful content (if caching enabled)
+                if success and self.action_cache and self.module_settings.get("caching_enabled", True):
                     self.action_cache.cache_tweet_content(content_hash, content)
                 
             elif action_type == "reply":
@@ -1030,8 +1068,8 @@ class XAgent:
             elif action_type == "follow":
                 username = params.get("username", "")
                 
-                # Check cache for follow status
-                if self.action_cache:
+                # Check cache for follow status (if caching enabled)
+                if self.action_cache and self.module_settings.get("caching_enabled", True):
                     cached_status = self.action_cache.get_follow_status(username)
                     if cached_status is True:
                         logger.info(f"Already following {username} (cached)")
@@ -1041,8 +1079,8 @@ class XAgent:
                 result = await self.follow_user(username)
                 success = result.get("status") == "success"
                 
-                # Cache follow status
-                if success and self.action_cache:
+                # Cache follow status (if caching enabled)
+                if success and self.action_cache and self.module_settings.get("caching_enabled", True):
                     self.action_cache.cache_follow_status(username, True)
                 
             elif action_type == "bulk_follow":
@@ -1052,7 +1090,16 @@ class XAgent:
                 
             elif action_type == "delay":
                 seconds = params.get("seconds", 60)
-                await asyncio.sleep(seconds)
+                
+                # Apply randomization if enabled
+                if self.time_interval_settings.get("randomize_intervals", True):
+                    randomization_factor = self.time_interval_settings.get("randomization_factor", 0.2)
+                    random_offset = int(seconds * randomization_factor * (0.5 - random.random()))
+                    effective_delay = max(1, seconds + random_offset)
+                    logger.info(f"Applying randomized delay: {effective_delay}s (base: {seconds}s)")
+                    await asyncio.sleep(effective_delay)
+                else:
+                    await asyncio.sleep(seconds)
                 success = True
                 
             elif action_type == "create_list":
@@ -1070,13 +1117,66 @@ class XAgent:
             logger.error(f"Error executing action {action_type}: {e}")
             error = str(e)
         
-        # Record action in rate limiter
-        if self.rate_limiter:
+        # Record action in rate limiter (if enabled)
+        if self.rate_limiter and self.module_settings.get("rate_limiting_enabled", True):
             self.rate_limiter.record_action(action_type, success)
         
-        # End performance monitoring
-        if self.performance_monitor and operation_id:
+        # End performance monitoring (if enabled)
+        if self.performance_monitor and self.module_settings.get("performance_monitoring_enabled", True) and operation_id:
             self.performance_monitor.end_operation(operation_id, success, error)
         
         if not success and error:
             raise Exception(error)
+
+    def update_module_settings(self, settings: Dict[str, bool]) -> Dict[str, Any]:
+        """Update module enable/disable settings."""
+        try:
+            for key, value in settings.items():
+                if key in self.module_settings:
+                    self.module_settings[key] = value
+                    logger.info(f"Updated module setting: {key} = {value}")
+            
+            return {
+                "status": "success",
+                "message": "Module settings updated successfully",
+                "current_settings": self.module_settings.copy()
+            }
+        except Exception as e:
+            logger.error(f"Error updating module settings: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to update module settings: {str(e)}"
+            }
+
+    def update_time_interval_settings(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+        """Update time interval settings."""
+        try:
+            for key, value in settings.items():
+                if key in self.time_interval_settings:
+                    self.time_interval_settings[key] = value
+                    logger.info(f"Updated time interval setting: {key} = {value}")
+            
+            return {
+                "status": "success",
+                "message": "Time interval settings updated successfully",
+                "current_settings": self.time_interval_settings.copy()
+            }
+        except Exception as e:
+            logger.error(f"Error updating time interval settings: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to update time interval settings: {str(e)}"
+            }
+
+    def get_module_status(self) -> Dict[str, Any]:
+        """Get current status of all modules and settings."""
+        return {
+            "module_settings": self.module_settings.copy(),
+            "time_interval_settings": self.time_interval_settings.copy(),
+            "available_modules": {
+                "rate_limiter": self.rate_limiter is not None,
+                "action_cache": self.action_cache is not None,
+                "performance_monitor": self.performance_monitor is not None,
+            },
+            "timestamp": datetime.now().isoformat()
+        }

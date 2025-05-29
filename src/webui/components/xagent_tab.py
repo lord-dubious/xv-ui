@@ -166,6 +166,56 @@ class XAgentTab:
             with gr.Accordion("⏱️ Behavioral Loops & Scheduling", open=False):
                 self._create_loops_section()
 
+            # Module control section
+            with gr.Accordion("🔧 Module Controls", open=False):
+                gr.Markdown("#### Enable/Disable System Modules")
+                
+                with gr.Row():
+                    with gr.Column():
+                        rate_limiting_enabled = gr.Checkbox(
+                            label="Rate Limiting",
+                            value=True,
+                            elem_id="rate_limiting_enabled",
+                        )
+                        
+                        caching_enabled = gr.Checkbox(
+                            label="Action Caching",
+                            value=True,
+                            elem_id="caching_enabled",
+                        )
+                        
+                        performance_monitoring_enabled = gr.Checkbox(
+                            label="Performance Monitoring",
+                            value=True,
+                            elem_id="performance_monitoring_enabled",
+                        )
+                    
+                    with gr.Column():
+                        adaptive_delays_enabled = gr.Checkbox(
+                            label="Adaptive Delays",
+                            value=True,
+                            elem_id="adaptive_delays_enabled",
+                        )
+                        
+                        burst_protection_enabled = gr.Checkbox(
+                            label="Burst Protection",
+                            value=True,
+                            elem_id="burst_protection_enabled",
+                        )
+                        
+                        update_modules_button = gr.Button(
+                            "🔧 Update Module Settings",
+                            elem_id="update_modules_button",
+                        )
+                
+                module_status = gr.Code(
+                    label="Module Status",
+                    language="json",
+                    lines=8,
+                    value="{}",
+                    elem_id="module_status",
+                )
+
             # Event handlers for task execution
             run_button.click(
                 fn=self.methods._run_xagent_task,
@@ -334,18 +384,53 @@ class XAgentTab:
             
             with gr.Row():
                 with gr.Column():
-                    # Time range settings
-                    start_time = gr.Textbox(
-                        label="Start Time (HH:MM)",
-                        value="09:00",
-                        elem_id="schedule_start_time",
+                    # Time mode selection
+                    time_mode = gr.Radio(
+                        choices=["Time Ranges", "Fixed Intervals"],
+                        value="Time Ranges",
+                        label="Timing Mode",
+                        elem_id="time_mode",
                     )
                     
-                    end_time = gr.Textbox(
-                        label="End Time (HH:MM)",
-                        value="18:00",
-                        elem_id="schedule_end_time",
-                    )
+                    # Time range settings (for time range mode)
+                    with gr.Group(visible=True) as time_range_group:
+                        start_time = gr.Textbox(
+                            label="Start Time (HH:MM)",
+                            value="09:00",
+                            elem_id="schedule_start_time",
+                        )
+                        
+                        end_time = gr.Textbox(
+                            label="End Time (HH:MM)",
+                            value="18:00",
+                            elem_id="schedule_end_time",
+                        )
+                    
+                    # Fixed interval settings (for interval mode)
+                    with gr.Group(visible=False) as interval_group:
+                        interval_minutes = gr.Slider(
+                            minimum=5,
+                            maximum=480,  # 8 hours
+                            value=60,
+                            step=5,
+                            label="Interval (minutes)",
+                            elem_id="interval_minutes",
+                        )
+                        
+                        randomize_intervals = gr.Checkbox(
+                            label="Randomize Intervals",
+                            value=True,
+                            elem_id="randomize_intervals",
+                        )
+                        
+                        randomization_factor = gr.Slider(
+                            minimum=0.0,
+                            maximum=0.5,
+                            value=0.2,
+                            step=0.05,
+                            label="Randomization Factor (±%)",
+                            elem_id="randomization_factor",
+                        )
                     
                     # Days of week
                     days_of_week = gr.CheckboxGroup(
@@ -375,10 +460,10 @@ class XAgentTab:
                         elem_id="follower_count_condition",
                     )
                     
-                    adaptive_delays = gr.Checkbox(
-                        label="Enable Adaptive Delays",
-                        value=True,
-                        elem_id="adaptive_delays",
+                    # Update time settings button
+                    update_time_settings_button = gr.Button(
+                        "⏰ Update Time Settings",
+                        elem_id="update_time_settings_button",
                     )
         
         # Event handlers for loops functionality
@@ -425,4 +510,36 @@ class XAgentTab:
                 fn=self.loop_methods._update_rate_limits,
                 inputs=[tweets_per_hour, follows_per_hour, min_delay_seconds],
                 outputs=[loop_status],
+            )
+            
+            # Module controls
+            update_modules_button.click(
+                fn=self.loop_methods._update_module_settings,
+                inputs=[
+                    rate_limiting_enabled, 
+                    caching_enabled, 
+                    performance_monitoring_enabled, 
+                    adaptive_delays_enabled, 
+                    burst_protection_enabled
+                ],
+                outputs=[module_status],
+            )
+            
+            # Time interval controls
+            time_mode.change(
+                fn=self.loop_methods._toggle_time_mode_visibility,
+                inputs=[time_mode],
+                outputs=[time_range_group, interval_group],
+            )
+            
+            update_time_settings_button.click(
+                fn=self.loop_methods._update_time_interval_settings,
+                inputs=[time_mode, interval_minutes, randomize_intervals, randomization_factor],
+                outputs=[loop_status],
+            )
+            
+            # Load module status on page load
+            self.interface.load(
+                fn=self.loop_methods._get_module_status,
+                outputs=[module_status],
             )

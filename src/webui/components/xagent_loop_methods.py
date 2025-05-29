@@ -113,8 +113,163 @@ class XAgentLoopMethods:
         """Load a predefined loop template."""
         templates = {
             "daily_engagement": {
-                "id": "daily_engagement",
-                "description": "Daily Twitter engagement routine",
+                "description": "Daily engagement with time ranges",
+                "config": [
+                    {
+                        "id": "daily_engagement",
+                        "description": "Daily Twitter engagement routine",
+                        "interval_seconds": 3600,
+                        "rate_limit": {
+                            "tweets_per_hour": 5,
+                            "follows_per_hour": 10,
+                            "min_delay_seconds": 300
+                        },
+                        "conditions": {
+                            "time_range": {"start": "09:00", "end": "18:00"},
+                            "days_of_week": [1, 2, 3, 4, 5]
+                        },
+                        "actions": [
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Good morning! Ready for a productive day! 🌅",
+                                    "persona": "tech_enthusiast"
+                                },
+                                "conditions": {
+                                    "time_range": {"start": "08:00", "end": "10:00"}
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 1800}
+                            },
+                            {
+                                "type": "follow",
+                                "params": {"username": "example_user"}
+                            }
+                        ]
+                    }
+                ]
+            },
+            "content_sharing": {
+                "description": "Content sharing with fixed intervals",
+                "config": [
+                    {
+                        "id": "content_sharing",
+                        "description": "Share content every 2 hours with randomization",
+                        "interval_seconds": 7200,  # 2 hours
+                        "rate_limit": {
+                            "tweets_per_hour": 3,
+                            "follows_per_hour": 5,
+                            "min_delay_seconds": 600
+                        },
+                        "conditions": {
+                            "days_of_week": [1, 2, 3, 4, 5, 6, 7]
+                        },
+                        "actions": [
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Sharing some interesting insights! 💡",
+                                    "persona": "content_creator"
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 900}  # 15 minutes
+                            },
+                            {
+                                "type": "bulk_follow",
+                                "params": {
+                                    "usernames": ["user1", "user2", "user3"]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "growth_strategy": {
+                "description": "Aggressive growth strategy with burst protection",
+                "config": [
+                    {
+                        "id": "growth_strategy",
+                        "description": "Growth-focused automation with smart limits",
+                        "interval_seconds": 1800,  # 30 minutes
+                        "rate_limit": {
+                            "tweets_per_hour": 8,
+                            "follows_per_hour": 25,
+                            "min_delay_seconds": 180
+                        },
+                        "conditions": {
+                            "time_range": {"start": "06:00", "end": "22:00"},
+                            "days_of_week": [1, 2, 3, 4, 5, 6, 7],
+                            "follower_count_max": 5000
+                        },
+                        "actions": [
+                            {
+                                "type": "follow",
+                                "params": {"username": "target_user"}
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 300}
+                            },
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Building connections in the community! 🤝",
+                                    "persona": "networker"
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 600}
+                            }
+                        ]
+                    }
+                ]
+            },
+            "weekend_casual": {
+                "description": "Relaxed weekend posting with minimal automation",
+                "config": [
+                    {
+                        "id": "weekend_casual",
+                        "description": "Light weekend activity",
+                        "interval_seconds": 14400,  # 4 hours
+                        "rate_limit": {
+                            "tweets_per_hour": 2,
+                            "follows_per_hour": 3,
+                            "min_delay_seconds": 900
+                        },
+                        "conditions": {
+                            "time_range": {"start": "10:00", "end": "20:00"},
+                            "days_of_week": [6, 7]  # Saturday, Sunday
+                        },
+                        "actions": [
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Enjoying a relaxing weekend! 🌞",
+                                    "persona": "casual"
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 3600}  # 1 hour
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        
+        if template_name in templates:
+            template = templates[template_name]
+            return json.dumps(template["config"], indent=2)
+        else:
+            return json.dumps([{
+                "id": "custom_loop",
+                "description": "Custom automation loop",
                 "interval_seconds": 3600,
                 "rate_limit": {
                     "tweets_per_hour": 5,
@@ -129,121 +284,12 @@ class XAgentLoopMethods:
                     {
                         "type": "tweet",
                         "params": {
-                            "content": "Good morning Twitter! 🌅 Ready for another productive day!",
-                            "persona": "tech_enthusiast"
-                        },
-                        "conditions": {
-                            "time_range": {"start": "08:00", "end": "10:00"}
-                        }
-                    },
-                    {
-                        "type": "delay",
-                        "params": {"seconds": 1800}
-                    },
-                    {
-                        "type": "follow",
-                        "params": {"username": "openai"},
-                        "conditions": {
-                            "max_follows_today": 20
+                            "content": "Hello world! 👋",
+                            "persona": "default"
                         }
                     }
                 ]
-            },
-            "content_sharing": {
-                "id": "content_sharing",
-                "description": "Automated content sharing with engagement",
-                "interval_seconds": 7200,
-                "rate_limit": {
-                    "tweets_per_hour": 3,
-                    "replies_per_hour": 5,
-                    "min_delay_seconds": 600
-                },
-                "actions": [
-                    {
-                        "type": "tweet",
-                        "params": {
-                            "content": "Sharing some interesting insights about {topic}! 🧠 #AI #Technology",
-                            "persona": "tech_enthusiast"
-                        }
-                    },
-                    {
-                        "type": "delay",
-                        "params": {"seconds": 3600}
-                    },
-                    {
-                        "type": "reply",
-                        "params": {
-                            "tweet_url": "https://twitter.com/user/status/123",
-                            "content": "Great point! This aligns with what we're seeing in the industry.",
-                            "persona": "tech_enthusiast"
-                        }
-                    }
-                ]
-            },
-            "growth_strategy": {
-                "id": "growth_strategy",
-                "description": "Strategic growth through targeted following and engagement",
-                "interval_seconds": 14400,
-                "rate_limit": {
-                    "follows_per_hour": 15,
-                    "tweets_per_hour": 2,
-                    "min_delay_seconds": 900
-                },
-                "conditions": {
-                    "follower_count_max": 5000
-                },
-                "actions": [
-                    {
-                        "type": "bulk_follow",
-                        "params": {
-                            "usernames": ["elonmusk", "sundarpichai", "satyanadella"]
-                        },
-                        "conditions": {
-                            "max_follows_today": 50
-                        }
-                    },
-                    {
-                        "type": "delay",
-                        "params": {"seconds": 2400}
-                    },
-                    {
-                        "type": "tweet",
-                        "params": {
-                            "content": "Building connections in the tech community! 🤝 #Networking #TechCommunity",
-                            "persona": "tech_enthusiast"
-                        }
-                    }
-                ]
-            },
-            "weekend_casual": {
-                "id": "weekend_casual",
-                "description": "Casual weekend posting schedule",
-                "interval_seconds": 10800,
-                "rate_limit": {
-                    "tweets_per_hour": 2,
-                    "min_delay_seconds": 1800
-                },
-                "conditions": {
-                    "days_of_week": [6, 7]
-                },
-                "actions": [
-                    {
-                        "type": "tweet",
-                        "params": {
-                            "content": "Weekend vibes! 🌟 Taking some time to explore new technologies and ideas.",
-                            "persona": "tech_enthusiast"
-                        }
-                    },
-                    {
-                        "type": "delay",
-                        "params": {"seconds": 5400}
-                    }
-                ]
-            }
-        }
-        
-        template = templates.get(template_name, {})
-        return json.dumps(template, indent=2) if template else "{}"
+            }], indent=2)
 
     def _validate_loop_config(self, loops_json: str):
         """Validate loop configuration JSON."""
@@ -427,3 +473,87 @@ class XAgentLoopMethods:
         except Exception as e:
             logger.error(f"Error optimizing performance: {e}")
             return f"❌ Error: {str(e)}"
+
+    def _update_module_settings(
+        self, 
+        rate_limiting: bool, 
+        caching: bool, 
+        performance_monitoring: bool, 
+        adaptive_delays: bool, 
+        burst_protection: bool
+    ):
+        """Update module enable/disable settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            settings = {
+                "rate_limiting_enabled": rate_limiting,
+                "caching_enabled": caching,
+                "performance_monitoring_enabled": performance_monitoring,
+                "adaptive_delays_enabled": adaptive_delays,
+                "burst_protection_enabled": burst_protection,
+            }
+            
+            result = self.tab.xagent.update_module_settings(settings)
+            
+            if result["status"] == "success":
+                return f"✅ {result['message']}"
+            else:
+                return f"❌ {result['message']}"
+                
+        except Exception as e:
+            logger.error(f"Error updating module settings: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _update_time_interval_settings(
+        self, 
+        time_mode: str, 
+        interval_minutes: int, 
+        randomize_intervals: bool, 
+        randomization_factor: float
+    ):
+        """Update time interval settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            use_fixed_intervals = (time_mode == "Fixed Intervals")
+            
+            settings = {
+                "use_fixed_intervals": use_fixed_intervals,
+                "interval_minutes": interval_minutes,
+                "randomize_intervals": randomize_intervals,
+                "randomization_factor": randomization_factor,
+            }
+            
+            result = self.tab.xagent.update_time_interval_settings(settings)
+            
+            if result["status"] == "success":
+                return f"✅ Updated timing mode to: {time_mode}"
+            else:
+                return f"❌ {result['message']}"
+                
+        except Exception as e:
+            logger.error(f"Error updating time interval settings: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _get_module_status(self):
+        """Get current module status and settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            status = self.tab.xagent.get_module_status()
+            return json.dumps(status, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error getting module status: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _toggle_time_mode_visibility(self, time_mode: str):
+        """Toggle visibility of time range vs interval controls."""
+        if time_mode == "Time Ranges":
+            return gr.update(visible=True), gr.update(visible=False)
+        else:  # Fixed Intervals
+            return gr.update(visible=False), gr.update(visible=True)
