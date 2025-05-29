@@ -90,6 +90,12 @@ class XAgent:
             "performance_monitoring_enabled": True,
             "adaptive_delays_enabled": True,
             "burst_protection_enabled": True,
+            "follow_system_enabled": True,
+            "unfollow_system_enabled": True,
+            "twitter_api_enabled": True,
+            "persona_manager_enabled": True,
+            "tweet_generator_enabled": True,
+            "media_manager_enabled": True,
         }
         
         self.time_interval_settings = {
@@ -307,6 +313,14 @@ class XAgent:
     async def follow_user(self, username: str) -> Dict[str, Any]:
         """Follow a user using the integrated follow system."""
         try:
+            # Check if follow system is enabled
+            if not self.module_settings.get("follow_system_enabled", True):
+                return {
+                    "status": "disabled",
+                    "message": "Follow system is disabled in module settings",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
             result = await self.follow_system.follow_user(username, "manual")
             
             # Update performance stats
@@ -322,6 +336,14 @@ class XAgent:
     async def bulk_follow(self, usernames: List[str]) -> Dict[str, Any]:
         """Follow multiple users using the integrated follow system."""
         try:
+            # Check if follow system is enabled
+            if not self.module_settings.get("follow_system_enabled", True):
+                return {
+                    "status": "disabled",
+                    "message": "Follow system is disabled in module settings",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
             result = await self.follow_system.bulk_follow(usernames, "bulk")
             
             # Update performance stats for each successful follow
@@ -336,6 +358,29 @@ class XAgent:
             
         except Exception as e:
             logger.error(f"Error in bulk follow: {e}")
+            self._update_performance_stats(False)
+            return {"status": "error", "message": str(e)}
+    
+    async def unfollow_user(self, username: str, reason: str = "cleanup") -> Dict[str, Any]:
+        """Unfollow a user using the integrated follow system."""
+        try:
+            # Check if unfollow system is enabled
+            if not self.module_settings.get("unfollow_system_enabled", True):
+                return {
+                    "status": "disabled",
+                    "message": "Unfollow system is disabled in module settings",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            result = await self.follow_system.unfollow_user(username, reason)
+            
+            # Update performance stats
+            self._update_performance_stats(result["status"] == "success")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error unfollowing user {username}: {e}")
             self._update_performance_stats(False)
             return {"status": "error", "message": str(e)}
     
