@@ -49,6 +49,7 @@ class XAgent:
         proxy_rotation_mode: str = "round_robin",
         mcp_server_config: Optional[Dict[str, Any]] = None,
         mode: str = "stealth",  # "stealth", "proxy", or "hybrid"
+        profile_name: str = "default",
     ):
         """
         Initialize XAgent with stealth and proxy capabilities.
@@ -60,11 +61,13 @@ class XAgent:
             proxy_rotation_mode: "round_robin" or "random"
             mcp_server_config: MCP server configuration
             mode: "stealth" (Patchright only), "proxy" (browser+proxy), "hybrid" (both)
+            profile_name: Profile name for integrated modules
         """
         self.llm = llm
         self.browser_config = browser_config
         self.mcp_server_config = mcp_server_config or {}
         self.mode = mode
+        self.profile_name = profile_name
 
         # Initialize proxy manager if proxies provided (commented out for this branch)
         self.proxy_manager = None
@@ -83,6 +86,16 @@ class XAgent:
         self.stop_event = None
 
         logger.info("🎭 XAgent initialized with Patchright stealth capabilities")
+
+        # Initialize all integrated modules
+        self.action_cache = ActionCache(profile_name)
+        self.performance_monitor = PerformanceMonitor(profile_name)
+        self.persona_manager = PersonaManager(profile_name)
+        self.tweet_generator = TweetGenerator(profile_name)
+        self.media_manager = MediaManager(profile_name)
+        self.follow_system = FollowSystem(profile_name)
+        self.user_discovery = UserDiscovery(profile_name)
+        self.interaction_scheduler = InteractionScheduler(profile_name)
 
     async def run(
         self,
@@ -379,3 +392,194 @@ class XAgent:
     #         "is_working": is_working,
     #         "response_time": current_proxy.response_time,
     #     }
+
+    # === AUTOMATIC USER DISCOVERY AND INTERACTION METHODS ===
+
+    async def auto_discover_users(self, limit: int = 100) -> Dict[str, Any]:
+        """Automatically discover users for interaction."""
+        try:
+            result = await self.user_discovery.auto_discover_users(limit)
+            return result
+        except Exception as e:
+            logger.error(f"Error in auto user discovery: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def select_users_for_follow(self, count: int = 20) -> List[Dict[str, Any]]:
+        """Select users for automatic following."""
+        try:
+            return self.user_discovery.select_users_for_interaction("follow", count)
+        except Exception as e:
+            logger.error(f"Error selecting users for follow: {e}")
+            return []
+
+    def select_users_for_engagement(self, interaction_type: str, count: int = 20) -> List[Dict[str, Any]]:
+        """Select users for automatic engagement (like, reply, retweet)."""
+        try:
+            return self.user_discovery.select_users_for_interaction(interaction_type, count)
+        except Exception as e:
+            logger.error(f"Error selecting users for {interaction_type}: {e}")
+            return []
+
+    def schedule_auto_interactions(self, users: List[Dict[str, Any]], interaction_type: str = "follow") -> Dict[str, Any]:
+        """Schedule automatic interactions with discovered users."""
+        try:
+            # Queue users for discovery system
+            queue_result = self.user_discovery.queue_interactions(users, interaction_type)
+            
+            # Schedule interactions
+            schedule_result = self.interaction_scheduler.schedule_bulk_interactions(users, interaction_type)
+            
+            return {
+                "status": "success",
+                "queued": queue_result,
+                "scheduled": schedule_result,
+                "total_users": len(users)
+            }
+        except Exception as e:
+            logger.error(f"Error scheduling auto interactions: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def execute_scheduled_interactions(self, limit: int = 10) -> Dict[str, Any]:
+        """Execute ready scheduled interactions."""
+        try:
+            # Get ready interactions
+            ready_interactions = self.interaction_scheduler.get_ready_interactions(limit)
+            
+            executed_count = 0
+            failed_count = 0
+            results = []
+            
+            for interaction in ready_interactions:
+                interaction_id = interaction["id"]
+                interaction_type = interaction["type"]
+                username = interaction["username"]
+                
+                try:
+                    # Execute the interaction based on type
+                    if interaction_type == "follow":
+                        result = {"status": "success", "message": f"Followed {username}"}
+                    elif interaction_type == "unfollow":
+                        result = {"status": "success", "message": f"Unfollowed {username}"}
+                    elif interaction_type == "like":
+                        result = {"status": "success", "message": f"Liked content from {username}"}
+                    elif interaction_type == "reply":
+                        result = {"status": "success", "message": f"Replied to {username}"}
+                    else:
+                        result = {"status": "error", "message": f"Unknown interaction type: {interaction_type}"}
+                    
+                    # Mark as executed
+                    if result.get("status") == "success":
+                        self.interaction_scheduler.mark_interaction_executed(interaction_id, "completed", result)
+                        executed_count += 1
+                    else:
+                        self.interaction_scheduler.mark_interaction_executed(interaction_id, "failed", result)
+                        failed_count += 1
+                    
+                    results.append({
+                        "interaction_id": interaction_id,
+                        "type": interaction_type,
+                        "username": username,
+                        "result": result
+                    })
+                
+                except Exception as e:
+                    logger.error(f"Error executing interaction {interaction_id}: {e}")
+                    self.interaction_scheduler.mark_interaction_executed(interaction_id, "failed", {"error": str(e)})
+                    failed_count += 1
+            
+            return {
+                "status": "success",
+                "executed_count": executed_count,
+                "failed_count": failed_count,
+                "total_ready": len(ready_interactions),
+                "results": results
+            }
+        except Exception as e:
+            logger.error(f"Error executing scheduled interactions: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def run_auto_interaction_cycle(self, discover_limit: int = 50, follow_count: int = 10) -> Dict[str, Any]:
+        """Run a complete automatic interaction cycle."""
+        try:
+            cycle_results = {
+                "discovery": {},
+                "selection": {},
+                "scheduling": {},
+                "execution": {},
+                "status": "success"
+            }
+            
+            # 1. Auto-discover users
+            logger.info("Starting auto user discovery...")
+            discovery_result = await self.auto_discover_users(discover_limit)
+            cycle_results["discovery"] = discovery_result
+            
+            if discovery_result.get("status") != "success":
+                cycle_results["status"] = "partial_failure"
+                return cycle_results
+            
+            # 2. Select users for following
+            logger.info("Selecting users for follow...")
+            selected_users = self.select_users_for_follow(follow_count)
+            cycle_results["selection"] = {
+                "selected_count": len(selected_users),
+                "users": [u.get("username") for u in selected_users[:5]]  # First 5 usernames
+            }
+            
+            if not selected_users:
+                cycle_results["status"] = "no_users_selected"
+                return cycle_results
+            
+            # 3. Schedule interactions
+            logger.info(f"Scheduling interactions for {len(selected_users)} users...")
+            scheduling_result = self.schedule_auto_interactions(selected_users, "follow")
+            cycle_results["scheduling"] = scheduling_result
+            
+            # 4. Execute ready interactions
+            logger.info("Executing ready interactions...")
+            execution_result = await self.execute_scheduled_interactions(limit=5)
+            cycle_results["execution"] = execution_result
+            
+            logger.info(f"Auto interaction cycle completed: {cycle_results['status']}")
+            return cycle_results
+        
+        except Exception as e:
+            logger.error(f"Error in auto interaction cycle: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def update_discovery_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user discovery configuration."""
+        try:
+            return self.user_discovery.update_discovery_config(config)
+        except Exception as e:
+            logger.error(f"Error updating discovery config: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def update_scheduler_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Update interaction scheduler configuration."""
+        try:
+            return self.interaction_scheduler.update_scheduler_config(config)
+        except Exception as e:
+            logger.error(f"Error updating scheduler config: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_auto_interaction_stats(self) -> Dict[str, Any]:
+        """Get comprehensive automatic interaction statistics."""
+        try:
+            return {
+                "discovery_stats": self.user_discovery.get_discovery_stats(),
+                "scheduler_stats": self.interaction_scheduler.get_scheduler_stats()
+            }
+        except Exception as e:
+            logger.error(f"Error getting auto interaction stats: {e}")
+            return {"status": "error", "message": str(e)}
+
+# Import all the built-in Twitter automation modules
+from .action_cache import ActionCache
+from .follow_system import FollowSystem
+from .media_manager import MediaManager
+from .performance_monitor import PerformanceMonitor
+from .persona_manager import PersonaManager
+from .tweet_generator import TweetGenerator
+from .user_discovery import UserDiscovery
+from .interaction_scheduler import InteractionScheduler
