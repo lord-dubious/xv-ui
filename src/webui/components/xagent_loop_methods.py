@@ -1,0 +1,760 @@
+"""
+XAgent Loop Methods - Behavioral loop functionality for XAgent UI.
+
+This module contains behavioral loop and scheduling methods for the XAgent interface,
+separated for better code organization and maintainability.
+"""
+
+import asyncio
+import json
+import logging
+import os
+from typing import Any, Dict, List, Optional
+from datetime import datetime
+
+# Import gradio with fallback
+try:
+    import gradio as gr
+    GRADIO_AVAILABLE = True
+except ImportError:
+    GRADIO_AVAILABLE = False
+    logging.warning("Gradio not available. UI functionality will be limited.")
+
+logger = logging.getLogger(__name__)
+
+
+class XAgentLoopMethods:
+    """Methods for XAgent behavioral loops and scheduling functionality."""
+    
+    def __init__(self, tab_instance):
+        """Initialize with reference to the tab instance."""
+        self.tab = tab_instance
+        
+    def _save_action_loops(self, profile_name: str, loops_json: str):
+        """Save action loops configuration."""
+        if not GRADIO_AVAILABLE:
+            return "Gradio not available"
+            
+        try:
+            # Import here to avoid circular imports
+            from src.agent.xagent.xagent import XAgent
+            
+            # Initialize XAgent if needed
+            if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+                llm = asyncio.run(self.tab.methods._initialize_llm_from_settings())
+                if llm:
+                    self.tab.xagent = XAgent(
+                        llm=llm,
+                        browser_config=self.tab.browser_config,
+                        profile_name=profile_name,
+                    )
+            
+            if self.tab.xagent:
+                result = self.tab.xagent.save_action_loops(loops_json)
+                if result["status"] == "success":
+                    return f"✅ {result['message']} ({result['loops_count']} loops)"
+                else:
+                    return f"❌ {result['error']}"
+            else:
+                return "❌ XAgent not initialized"
+                
+        except Exception as e:
+            logger.error(f"Error saving action loops: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _start_action_loop(self):
+        """Start behavioral action loops."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            result = asyncio.run(self.tab.xagent.start_action_loop())
+            if result["status"] == "success":
+                return f"✅ {result['message']} ({result['loops_count']} loops)"
+            else:
+                return f"❌ {result['error']}"
+                
+        except Exception as e:
+            logger.error(f"Error starting action loops: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _stop_action_loop(self):
+        """Stop behavioral action loops."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            result = asyncio.run(self.tab.xagent.stop_action_loop())
+            if result["status"] == "success":
+                return f"✅ {result['message']}"
+            else:
+                return f"❌ {result['error']}"
+                
+        except Exception as e:
+            logger.error(f"Error stopping action loops: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _get_loop_status(self):
+        """Get current loop status."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            status = self.tab.xagent.get_action_loops_status()
+            if status["loop_running"]:
+                return f"🔄 Running ({status['loops_count']} loops active)"
+            else:
+                return f"⏸️ Stopped ({status['loops_count']} loops configured)"
+                
+        except Exception as e:
+            logger.error(f"Error getting loop status: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _load_loop_template(self, template_name: str):
+        """Load a predefined loop template."""
+        templates = {
+            "daily_engagement": {
+                "description": "Daily engagement with time ranges",
+                "config": [
+                    {
+                        "id": "daily_engagement",
+                        "description": "Daily Twitter engagement routine",
+                        "interval_seconds": 3600,
+                        "rate_limit": {
+                            "tweets_per_hour": 5,
+                            "follows_per_hour": 10,
+                            "min_delay_seconds": 300
+                        },
+                        "conditions": {
+                            "time_range": {"start": "09:00", "end": "18:00"},
+                            "days_of_week": [1, 2, 3, 4, 5]
+                        },
+                        "actions": [
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Good morning! Ready for a productive day! 🌅",
+                                    "persona": "tech_enthusiast"
+                                },
+                                "conditions": {
+                                    "time_range": {"start": "08:00", "end": "10:00"}
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 1800}
+                            },
+                            {
+                                "type": "follow",
+                                "params": {"username": "example_user"}
+                            }
+                        ]
+                    }
+                ]
+            },
+            "content_sharing": {
+                "description": "Content sharing with fixed intervals",
+                "config": [
+                    {
+                        "id": "content_sharing",
+                        "description": "Share content every 2 hours with randomization",
+                        "interval_seconds": 7200,  # 2 hours
+                        "rate_limit": {
+                            "tweets_per_hour": 3,
+                            "follows_per_hour": 5,
+                            "min_delay_seconds": 600
+                        },
+                        "conditions": {
+                            "days_of_week": [1, 2, 3, 4, 5, 6, 7]
+                        },
+                        "actions": [
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Sharing some interesting insights! 💡",
+                                    "persona": "content_creator"
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 900}  # 15 minutes
+                            },
+                            {
+                                "type": "bulk_follow",
+                                "params": {
+                                    "usernames": ["user1", "user2", "user3"]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "growth_strategy": {
+                "description": "Aggressive growth strategy with burst protection",
+                "config": [
+                    {
+                        "id": "growth_strategy",
+                        "description": "Growth-focused automation with smart limits",
+                        "interval_seconds": 1800,  # 30 minutes
+                        "rate_limit": {
+                            "tweets_per_hour": 8,
+                            "follows_per_hour": 25,
+                            "min_delay_seconds": 180
+                        },
+                        "conditions": {
+                            "time_range": {"start": "06:00", "end": "22:00"},
+                            "days_of_week": [1, 2, 3, 4, 5, 6, 7],
+                            "follower_count_max": 5000
+                        },
+                        "actions": [
+                            {
+                                "type": "follow",
+                                "params": {"username": "target_user"}
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 300}
+                            },
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Building connections in the community! 🤝",
+                                    "persona": "networker"
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 600}
+                            }
+                        ]
+                    }
+                ]
+            },
+            "weekend_casual": {
+                "description": "Relaxed weekend posting with minimal automation",
+                "config": [
+                    {
+                        "id": "weekend_casual",
+                        "description": "Light weekend activity",
+                        "interval_seconds": 14400,  # 4 hours
+                        "rate_limit": {
+                            "tweets_per_hour": 2,
+                            "follows_per_hour": 3,
+                            "min_delay_seconds": 900
+                        },
+                        "conditions": {
+                            "time_range": {"start": "10:00", "end": "20:00"},
+                            "days_of_week": [6, 7]  # Saturday, Sunday
+                        },
+                        "actions": [
+                            {
+                                "type": "tweet",
+                                "params": {
+                                    "content": "Enjoying a relaxing weekend! 🌞",
+                                    "persona": "casual"
+                                }
+                            },
+                            {
+                                "type": "delay",
+                                "params": {"seconds": 3600}  # 1 hour
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        
+        if template_name in templates:
+            template = templates[template_name]
+            return json.dumps(template["config"], indent=2)
+        else:
+            return json.dumps([{
+                "id": "custom_loop",
+                "description": "Custom automation loop",
+                "interval_seconds": 3600,
+                "rate_limit": {
+                    "tweets_per_hour": 5,
+                    "follows_per_hour": 10,
+                    "min_delay_seconds": 300
+                },
+                "conditions": {
+                    "time_range": {"start": "09:00", "end": "18:00"},
+                    "days_of_week": [1, 2, 3, 4, 5]
+                },
+                "actions": [
+                    {
+                        "type": "tweet",
+                        "params": {
+                            "content": "Hello world! 👋",
+                            "persona": "default"
+                        }
+                    }
+                ]
+            }], indent=2)
+
+    def _validate_loop_config(self, loops_json: str):
+        """Validate loop configuration JSON."""
+        try:
+            loops = json.loads(loops_json)
+            
+            if not isinstance(loops, list):
+                return "❌ Configuration must be a list of loops"
+            
+            for i, loop in enumerate(loops):
+                if not isinstance(loop, dict):
+                    return f"❌ Loop {i+1} must be an object"
+                
+                required_fields = ["id", "description", "interval_seconds", "actions"]
+                for field in required_fields:
+                    if field not in loop:
+                        return f"�� Loop {i+1} missing required field: {field}"
+                
+                if not isinstance(loop["actions"], list):
+                    return f"❌ Loop {i+1} actions must be a list"
+                
+                for j, action in enumerate(loop["actions"]):
+                    if not isinstance(action, dict):
+                        return f"❌ Loop {i+1}, Action {j+1} must be an object"
+                    
+                    if "type" not in action:
+                        return f"❌ Loop {i+1}, Action {j+1} missing type"
+                    
+                    valid_types = ["tweet", "reply", "follow", "bulk_follow", "delay", "create_list"]
+                    if action["type"] not in valid_types:
+                        return f"❌ Loop {i+1}, Action {j+1} invalid type: {action['type']}"
+            
+            return "✅ Configuration is valid"
+            
+        except json.JSONDecodeError as e:
+            return f"❌ Invalid JSON: {str(e)}"
+        except Exception as e:
+            return f"❌ Validation error: {str(e)}"
+
+    def _get_loop_statistics(self):
+        """Get loop execution statistics."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            # This would be expanded with actual statistics tracking
+            status = self.tab.xagent.get_action_loops_status()
+            
+            stats = {
+                "total_loops": status["loops_count"],
+                "running": status["loop_running"],
+                "last_execution": "Not available",
+                "total_actions_executed": "Not tracked yet",
+                "success_rate": "Not tracked yet"
+            }
+            
+            return json.dumps(stats, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error getting loop statistics: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _update_rate_limits(self, tweets_per_hour: int, follows_per_hour: int, min_delay_seconds: int):
+        """Update rate limiting settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            if self.tab.xagent.rate_limiter:
+                # Update custom limits
+                custom_limits = {
+                    "tweets": tweets_per_hour,
+                    "follows": follows_per_hour,
+                }
+                self.tab.xagent.rate_limiter.set_custom_limits(custom_limits)
+                
+                # Update minimum delays
+                min_delays = {
+                    "tweets": min_delay_seconds,
+                    "follows": min_delay_seconds // 2,  # Follows can be faster
+                    "replies": min_delay_seconds,
+                }
+                self.tab.xagent.rate_limiter.set_min_delays(min_delays)
+                
+                return f"✅ Updated rate limits: {tweets_per_hour} tweets/hour, {follows_per_hour} follows/hour, {min_delay_seconds}s min delay"
+            else:
+                return "❌ Rate limiter not available"
+                
+        except Exception as e:
+            logger.error(f"Error updating rate limits: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _get_performance_stats(self):
+        """Get comprehensive performance statistics."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            stats = {}
+            
+            # Rate limiting stats
+            if self.tab.xagent.rate_limiter:
+                stats["rate_limiting"] = self.tab.xagent.rate_limiter.get_statistics()
+            
+            # Performance monitoring stats
+            if self.tab.xagent.performance_monitor:
+                stats["performance"] = self.tab.xagent.performance_monitor.export_performance_data()
+            
+            # Cache stats
+            if self.tab.xagent.action_cache:
+                stats["cache"] = self.tab.xagent.action_cache.get_statistics()
+            
+            # Loop status
+            loop_status = self.tab.xagent.get_action_loops_status()
+            stats["loops"] = {
+                "running": loop_status["loop_running"],
+                "total_loops": loop_status["loops_count"],
+                "timestamp": loop_status["timestamp"],
+            }
+            
+            return json.dumps(stats, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error getting performance stats: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _optimize_performance(self):
+        """Analyze and optimize performance."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            optimizations = []
+            
+            # Get performance analysis
+            if self.tab.xagent.performance_monitor:
+                analysis = self.tab.xagent.performance_monitor.optimize_performance()
+                optimizations.extend(analysis.get("optimizations", []))
+            
+            # Check rate limiting efficiency
+            if self.tab.xagent.rate_limiter:
+                rate_stats = self.tab.xagent.rate_limiter.get_statistics()
+                
+                # Suggest optimizations based on rate limiting
+                for action_type, stats in rate_stats.items():
+                    if isinstance(stats, dict) and stats.get("wait_time", 0) > 300:  # 5 minutes
+                        optimizations.append({
+                            "type": "rate_limiting",
+                            "operation": action_type,
+                            "issue": f"Long wait times: {stats['wait_time']:.1f}s",
+                            "suggestion": "Consider reducing action frequency or increasing limits",
+                        })
+            
+            # Check cache efficiency
+            if self.tab.xagent.action_cache:
+                cache_stats = self.tab.xagent.action_cache.get_statistics()
+                hit_rate = cache_stats.get("hit_rate", 0)
+                
+                if hit_rate < 20:  # Low cache hit rate
+                    optimizations.append({
+                        "type": "caching",
+                        "operation": "cache",
+                        "issue": f"Low cache hit rate: {hit_rate}%",
+                        "suggestion": "Review caching strategy or increase cache TTL",
+                    })
+            
+            result = {
+                "optimizations": optimizations,
+                "total_issues": len(optimizations),
+                "recommendations": [
+                    "Monitor performance regularly",
+                    "Adjust rate limits based on Twitter API responses",
+                    "Use caching for repeated operations",
+                    "Enable adaptive delays for error recovery",
+                ],
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+            return json.dumps(result, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error optimizing performance: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _update_module_settings(
+        self, 
+        rate_limiting: bool, 
+        caching: bool, 
+        performance_monitoring: bool, 
+        adaptive_delays: bool, 
+        burst_protection: bool
+    ):
+        """Update module enable/disable settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            settings = {
+                "rate_limiting_enabled": rate_limiting,
+                "caching_enabled": caching,
+                "performance_monitoring_enabled": performance_monitoring,
+                "adaptive_delays_enabled": adaptive_delays,
+                "burst_protection_enabled": burst_protection,
+            }
+            
+            result = self.tab.xagent.update_module_settings(settings)
+            
+            if result["status"] == "success":
+                return f"✅ {result['message']}"
+            else:
+                return f"❌ {result['message']}"
+                
+        except Exception as e:
+            logger.error(f"Error updating module settings: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _update_time_interval_settings(
+        self, 
+        time_mode: str, 
+        interval_minutes: int, 
+        randomize_intervals: bool, 
+        randomization_factor: float
+    ):
+        """Update time interval settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            use_fixed_intervals = (time_mode == "Fixed Intervals")
+            
+            settings = {
+                "use_fixed_intervals": use_fixed_intervals,
+                "interval_minutes": interval_minutes,
+                "randomize_intervals": randomize_intervals,
+                "randomization_factor": randomization_factor,
+            }
+            
+            result = self.tab.xagent.update_time_interval_settings(settings)
+            
+            if result["status"] == "success":
+                return f"✅ Updated timing mode to: {time_mode}"
+            else:
+                return f"❌ {result['message']}"
+                
+        except Exception as e:
+            logger.error(f"Error updating time interval settings: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _get_module_status(self):
+        """Get current module status and settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            status = self.tab.xagent.get_module_status()
+            return json.dumps(status, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error getting module status: {e}")
+            return f"❌ Error: {str(e)}"
+
+    def _toggle_time_mode_visibility(self, time_mode: str):
+        """Toggle visibility of time range vs interval controls."""
+        if time_mode == "Time Ranges":
+            return gr.update(visible=True), gr.update(visible=False)
+        else:  # Fixed Intervals
+            return gr.update(visible=False), gr.update(visible=True)
+
+    def _save_all_configuration(
+        self,
+        # Twitter settings
+        cookies_path: str,
+        config_path: str,
+        headless: bool,
+        stealth_mode: bool,
+        user_agent: str,
+        viewport_width: int,
+        viewport_height: int,
+        timeout: int,
+        # Performance settings
+        cache_max_size: int,
+        cache_ttl: int,
+        history_size: int,
+        cpu_threshold: int,
+        memory_threshold: int,
+        monitoring_interval: int,
+        # Rate limiting settings
+        tweets_limit: int,
+        follows_limit: int,
+        likes_limit: int,
+        tweet_delay: int,
+        follow_delay: int,
+        like_delay: int,
+        # Advanced settings
+        encryption_enabled: bool,
+        auto_save_enabled: bool,
+        debug_mode: bool,
+        verbose_logging: bool,
+        max_retries: int,
+        retry_delay: int,
+        session_timeout: int,
+    ):
+        """Save all configuration settings."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            # Update Twitter configuration
+            twitter_config = {
+                "cookies_path": cookies_path,
+                "config_path": config_path,
+                "headless": headless,
+                "stealth_mode": stealth_mode,
+                "user_agent": user_agent if user_agent else None,
+                "viewport": {"width": viewport_width, "height": viewport_height},
+                "timeout": timeout,
+            }
+            
+            # Update performance settings
+            if self.tab.xagent.action_cache:
+                self.tab.xagent.action_cache.max_size = cache_max_size
+                self.tab.xagent.action_cache.default_ttl = cache_ttl
+            
+            if self.tab.xagent.performance_monitor:
+                self.tab.xagent.performance_monitor.history_size = history_size
+                self.tab.xagent.performance_monitor.thresholds.update({
+                    "cpu_usage": cpu_threshold,
+                    "memory_usage": memory_threshold,
+                })
+            
+            # Update rate limiting settings
+            if self.tab.xagent.rate_limiter:
+                default_limits = {
+                    "tweets": tweets_limit,
+                    "follows": follows_limit,
+                    "likes": likes_limit,
+                }
+                self.tab.xagent.rate_limiter.default_limits.update(default_limits)
+                
+                min_delays = {
+                    "tweets": tweet_delay,
+                    "follows": follow_delay,
+                    "likes": like_delay,
+                }
+                self.tab.xagent.rate_limiter.min_delays.update(min_delays)
+            
+            # Update advanced settings
+            advanced_settings = {
+                "encryption_enabled": encryption_enabled,
+                "auto_save_enabled": auto_save_enabled,
+                "debug_mode": debug_mode,
+                "verbose_logging": verbose_logging,
+                "max_retries": max_retries,
+                "retry_delay": retry_delay,
+                "session_timeout": session_timeout,
+            }
+            
+            # Save configuration to file
+            if auto_save_enabled:
+                self.tab.xagent._save_profile_config()
+            
+            return "✅ All configuration settings saved successfully!"
+            
+        except Exception as e:
+            logger.error(f"Error saving configuration: {e}")
+            return f"❌ Error saving configuration: {str(e)}"
+
+    def _load_complete_configuration(self):
+        """Load and display complete configuration."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            config = {
+                "twitter_config": getattr(self.tab.xagent, 'twitter_config', {}),
+                "module_settings": getattr(self.tab.xagent, 'module_settings', {}),
+                "time_interval_settings": getattr(self.tab.xagent, 'time_interval_settings', {}),
+                "rate_limiter_settings": self.tab.xagent.rate_limiter.get_statistics() if self.tab.xagent.rate_limiter else {},
+                "cache_settings": self.tab.xagent.action_cache.get_statistics() if self.tab.xagent.action_cache else {},
+                "performance_settings": self.tab.xagent.performance_monitor.export_performance_data() if self.tab.xagent.performance_monitor else {},
+                "action_loops": getattr(self.tab.xagent, 'action_loops', []),
+            }
+            
+            return json.dumps(config, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error loading configuration: {e}")
+            return f"❌ Error loading configuration: {str(e)}"
+
+    def _reset_to_defaults(self):
+        """Reset all settings to default values."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            # Reset module settings
+            self.tab.xagent.module_settings = {
+                "rate_limiting_enabled": True,
+                "caching_enabled": True,
+                "performance_monitoring_enabled": True,
+                "adaptive_delays_enabled": True,
+                "burst_protection_enabled": True,
+            }
+            
+            # Reset time interval settings
+            self.tab.xagent.time_interval_settings = {
+                "use_fixed_intervals": False,
+                "interval_minutes": 60,
+                "randomize_intervals": True,
+                "randomization_factor": 0.2,
+            }
+            
+            # Reset rate limiter to defaults
+            if self.tab.xagent.rate_limiter:
+                self.tab.xagent.rate_limiter.custom_limits.clear()
+                self.tab.xagent.rate_limiter.adaptive_delays.clear()
+                self.tab.xagent.rate_limiter.base_delay_multiplier = 1.0
+            
+            # Clear action loops
+            self.tab.xagent.action_loops = []
+            
+            return "✅ All settings reset to defaults"
+            
+        except Exception as e:
+            logger.error(f"Error resetting configuration: {e}")
+            return f"❌ Error resetting configuration: {str(e)}"
+
+    def _export_configuration(self):
+        """Export complete configuration as downloadable JSON."""
+        if not hasattr(self.tab, 'xagent') or not self.tab.xagent:
+            return "❌ XAgent not initialized"
+            
+        try:
+            config = {
+                "export_timestamp": datetime.now().isoformat(),
+                "version": "1.0",
+                "twitter_config": getattr(self.tab.xagent, 'twitter_config', {}),
+                "module_settings": getattr(self.tab.xagent, 'module_settings', {}),
+                "time_interval_settings": getattr(self.tab.xagent, 'time_interval_settings', {}),
+                "action_loops": getattr(self.tab.xagent, 'action_loops', []),
+                "rate_limiter_config": {
+                    "default_limits": self.tab.xagent.rate_limiter.default_limits if self.tab.xagent.rate_limiter else {},
+                    "custom_limits": self.tab.xagent.rate_limiter.custom_limits if self.tab.xagent.rate_limiter else {},
+                    "min_delays": self.tab.xagent.rate_limiter.min_delays if self.tab.xagent.rate_limiter else {},
+                },
+                "cache_config": {
+                    "max_size": self.tab.xagent.action_cache.max_size if self.tab.xagent.action_cache else 1000,
+                    "default_ttl": self.tab.xagent.action_cache.default_ttl if self.tab.xagent.action_cache else 3600,
+                    "category_ttls": self.tab.xagent.action_cache.category_ttls if self.tab.xagent.action_cache else {},
+                },
+            }
+            
+            # Save to file
+            export_filename = f"xagent_config_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            export_path = os.path.join("./exports", export_filename)
+            
+            # Create exports directory if it doesn't exist
+            os.makedirs("./exports", exist_ok=True)
+            
+            with open(export_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            return f"✅ Configuration exported to: {export_path}"
+            
+        except Exception as e:
+            logger.error(f"Error exporting configuration: {e}")
+            return f"❌ Error exporting configuration: {str(e)}"

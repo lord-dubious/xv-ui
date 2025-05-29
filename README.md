@@ -21,89 +21,63 @@ We would like to officially thank [WarmShao](https://github.com/warmshao) for hi
 
 <video src="https://github.com/user-attachments/assets/56bc7080-f2e3-4367-af22-6bf2245ff6cb" controls="controls">Your browser does not support playing this video!</video>
 
+## Features
+
+- 🌐 Browser automation with AI assistance
+- 🤖 Multiple specialized agents:
+  - 🎭 XAgent: Enhanced stealth capabilities with anti-detection measures
+  - 🐦 Twitter Agent: Browser-based Twitter automation (tweeting, following, engagement)
+  - 🔍 Deep Research: Advanced web research capabilities
+- 🧠 Multiple LLM providers support (OpenAI, Anthropic, etc.)
+- 🎮 Interactive browser control
+- 📊 Task execution tracking
+- 🔒 Secure cookie and session management
+- 📱 Mobile-responsive UI
+
 ## Installation Guide
+
+### Prerequisites
+
+- Python 3.10 or higher
+- Docker (optional, for containerized deployment)
 
 ### Option 1: Local Installation
 
-Read the [quickstart guide](https://docs.browser-use.com/quickstart#prepare-the-environment) or follow the steps below to get started.
-
-#### Step 1: Clone the Repository
+1. Clone the repository:
 ```bash
-git clone https://github.com/browser-use/web-ui.git
-cd web-ui
+git clone https://github.com/lord-dubious/xv-ui.git
+cd xv-ui
 ```
 
-#### Step 2: Set Up Python Environment
-We recommend using [uv](https://docs.astral.sh/uv/) for managing the Python environment.
-
-Using uv (recommended):
+2. Create a virtual environment:
 ```bash
-uv venv --python 3.11
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-Activate the virtual environment:
-- Windows (Command Prompt):
-```cmd
-.venv\Scripts\activate
-```
-- Windows (PowerShell):
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-- macOS/Linux:
+3. Install dependencies:
 ```bash
-source .venv/bin/activate
+pip install -r requirements.txt
+playwright install chromium
 ```
 
-#### Step 3: Install Dependencies
-Install Python packages:
-```bash
-uv pip install -r requirements.txt
-```
-
-Install Browsers in playwright. 
-```bash
-playwright install --with-deps
-```
-Or you can install specific browsers by running:
-```bash
-playwright install chromium --with-deps
-```
-
-#### Step 4: Configure Environment
-1. Create a copy of the example environment file:
-- Windows (Command Prompt):
-```bash
-copy .env.example .env
-```
-- macOS/Linux/Windows (PowerShell):
+4. Set up environment variables:
 ```bash
 cp .env.example .env
+# Edit .env with your API keys and preferences
 ```
-2. Open `.env` in your preferred text editor and add your API keys and other settings
 
-#### Step 5: Enjoy the web-ui
-1.  **Run the WebUI:**
-    ```bash
-    python webui.py --ip 127.0.0.1 --port 7788
-    ```
-2. **Access the WebUI:** Open your web browser and navigate to `http://127.0.0.1:7788`.
-3. **Using Your Own Browser(Optional):**
-    - Set `BROWSER_PATH` to the executable path of your browser and `BROWSER_USER_DATA` to the user data directory of your browser. Leave `BROWSER_USER_DATA` empty if you want to use local user data.
-      - Windows
-        ```env
-         BROWSER_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
-         BROWSER_USER_DATA="C:\Users\YourUsername\AppData\Local\Google\Chrome\User Data"
-        ```
-        > Note: Replace `YourUsername` with your actual Windows username for Windows systems.
-      - Mac
-        ```env
-         BROWSER_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-         BROWSER_USER_DATA="/Users/YourUsername/Library/Application Support/Google/Chrome"
-        ```
-    - Close all Chrome windows
-    - Open the WebUI in a non-Chrome browser, such as Firefox or Edge. This is important because the persistent browser context will use the Chrome data when running the agent.
-    - Check the "Use Own Browser" option within the Browser Settings.
+5. (Optional) Set up Twitter Agent integration:
+```bash
+python src/agent/xagent/setup_twagent.py
+```
+
+6. Run the application:
+```bash
+python webui.py
+```
+
+7. Open your browser and navigate to http://localhost:7860
 
 ### Option 2: Docker Installation
 
@@ -149,3 +123,33 @@ TARGETPLATFORM=linux/arm64 docker compose up --build
 - [x] **2025/01/26:** Thanks to @vvincent1234. Now browser-use-webui can combine with DeepSeek-r1 to engage in deep thinking!
 - [x] **2025/01/10:** Thanks to @casistack. Now we have Docker Setup option and also Support keep browser open between tasks.[Video tutorial demo](https://github.com/browser-use/web-ui/issues/1#issuecomment-2582511750).
 - [x] **2025/01/06:** Thanks to @richard-devbot. A New and Well-Designed WebUI is released. [Video tutorial demo](https://github.com/warmshao/browser-use-webui/issues/1#issuecomment-2573393113).
+
+## Agents
+
+### Browser Use Agent
+The core agent that provides browser automation capabilities. It can navigate websites, fill forms, click buttons, and perform various browser-based tasks.
+
+### XAgent
+XAgent enhances the Browser Use Agent with advanced stealth capabilities:
+- Patchright browser with patched Runtime.enable and Console.enable
+- Enhanced anti-detection measures
+- Closed shadow root interaction support
+- Advanced fingerprint resistance
+- Bot detection bypass for Cloudflare, Kasada, Akamai, Datadome, and more
+
+### Twitter Agent
+Twitter Agent integrates the [twagent](https://github.com/lord-dubious/twagent) library to provide browser-based Twitter automation:
+- Tweet creation and replies
+- Following users and managing lists
+- Persona-based content generation
+- Cookie-based authentication
+- Stealth capabilities to avoid detection
+
+To use the Twitter Agent:
+1. Run the setup script: `python src/agent/xagent/setup_twagent.py`
+2. Obtain Twitter cookies (see [twagent documentation](https://github.com/lord-dubious/twagent))
+3. Configure personas in the `personas` directory
+4. Use the Twitter Agent tab in the UI
+
+### Deep Research Agent
+<!-- ... rest of the existing content ... -->

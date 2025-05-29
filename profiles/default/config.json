@@ -1,0 +1,36 @@
+{
+  "twitter": {
+    "cookies_path": "./cookies.json",
+    "persona_path": "./personas"
+  },
+  "credentials": {
+    "username": "",
+    "email": "",
+    "password": "",
+    "totp_secret": ""
+  },
+  "action_loops": [
+    {
+      "id": "example_loop",
+      "description": "Example action loop - disabled by default",
+      "interval_seconds": 3600,
+      "actions": [
+        {
+          "type": "tweet",
+          "params": {
+            "content": "Hello from XAgent! 🤖 #automation",
+            "persona": "tech_enthusiast"
+          }
+        },
+        {
+          "type": "delay",
+          "params": {
+            "seconds": 300
+          }
+        }
+      ]
+    }
+  ],
+  "scheduled_actions": []
+}
+

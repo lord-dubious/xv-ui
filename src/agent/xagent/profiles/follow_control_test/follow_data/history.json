@@ -1,0 +1,30 @@
+[
+  {
+    "username": "test_user_1",
+    "action": "follow",
+    "source": "manual",
+    "timestamp": "2025-05-29T11:46:00.319757",
+    "status": "success"
+  },
+  {
+    "username": "test_user_1",
+    "action": "unfollow",
+    "reason": "test cleanup",
+    "timestamp": "2025-05-29T11:46:01.525832",
+    "status": "success"
+  },
+  {
+    "username": "test_user_3",
+    "action": "follow",
+    "source": "manual",
+    "timestamp": "2025-05-29T11:46:02.727842",
+    "status": "success"
+  },
+  {
+    "username": "test_user_3",
+    "action": "unfollow",
+    "reason": "test cleanup",
+    "timestamp": "2025-05-29T11:46:03.928522",
+    "status": "success"
+  }
+]
