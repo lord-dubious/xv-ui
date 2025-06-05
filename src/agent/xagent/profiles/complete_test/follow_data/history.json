@@ -1,0 +1,23 @@
+[
+  {
+    "username": "test_integration_user",
+    "action": "follow",
+    "source": "manual",
+    "timestamp": "2025-05-29T11:37:15.656091",
+    "status": "success"
+  },
+  {
+    "username": "user1",
+    "action": "follow",
+    "source": "bulk",
+    "timestamp": "2025-05-29T11:37:21.478667",
+    "status": "success"
+  },
+  {
+    "username": "user2",
+    "action": "follow",
+    "source": "bulk",
+    "timestamp": "2025-05-29T11:37:28.818535",
+    "status": "success"
+  }
+]

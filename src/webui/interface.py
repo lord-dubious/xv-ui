@@ -90,7 +90,7 @@ def create_ui(theme_name="Ocean"):
                     elem_classes=["tab-header-text"],
                 )
                 with gr.Tabs():
-                    with gr.TabItem("🎭 XAgent (Stealth + Proxy)"):
+                    with gr.TabItem("🎭 XAgent (Stealth + Twitter)"):
                         # Create XAgent tab with browser config
                         browser_config = {
                             "headless": False,
